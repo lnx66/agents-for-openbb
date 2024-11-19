@@ -1,12 +1,12 @@
-# Bring your own Copilot to OpenBB Terminal
+# Bring your own Copilot to the OpenBB app
 
-Welcome to the example repository for integrating custom copilots into the OpenBB Terminal.
+Welcome to the example repository for integrating custom copilots into the OpenBB app.
 
 This repository provides everything you need to build and add your own custom
-copilots to OpenBB Copilot.
+copilots that are compatible with the OpenBB app.
 
 Here are a few common reasons why you might want to build your own copilot:
-- You have a unique data source that you don't want to add as a custom integration to OpenBB Terminal.
+- You have a unique data source that you don't want to add as a custom integration to OpenBB.
 - You want to use a specific LLM.
 - You want to use a local LLM.
 - You want a Copilot that is self-hosted on your infrastructure.
@@ -15,9 +15,8 @@ Here are a few common reasons why you might want to build your own copilot:
 
 ## Overview
 
-To integrate a custom Copilot that you can interact with from the OpenBB
-Terminal, you'll need to create a backend API that the Terminal can make
-requests to.  
+To integrate a custom Copilot that you can interact with from the OpenBB app,
+you'll need to create a backend API that the OpenBB app can make requests to.  
 
 
 Your custom copilot API will respond with Server-Sent Events
@@ -25,24 +24,24 @@ Your custom copilot API will respond with Server-Sent Events
 
 **Note: If you're looking to get started
 quickly, we suggest running one of the example copilots included as part of
-this repository, and adding it as a custom copilot to OpenBB Terminal (each example copilot includes instructions on how to run them). Cloning and modifying an example copilot is a great way to build a custom copilot.**
+this repository, and adding it as a custom copilot to the OpenBB app (each example copilot includes instructions on how to run them). Cloning and modifying an example copilot is a great way to build a custom copilot.**
 
 ## The Copilot protocol is stateless
 
 The most important concept to understand is that the copilot protocol is
-_stateless_.  This means that every request from OpenBB Terminal to your copilot
+_stateless_.  This means that every request from the OpenBB app to your copilot
 will include all previous messages (such as AI completions, human messages,
 function calls, and function call results) in the request payload.
 
 This means it is not necessary for your custom copilot to maintain any state
 between requests. It should simply use the request payload to generate a response.
 
-OpenBB Terminal is solely responsible for maintaining the conversation state, and will
+The OpenBB app is solely responsible for maintaining the conversation state, and will
 append the responses to the `messages` array in the request payload. 
 
-## Handling requests from OpenBB Terminal
+## Handling requests from the OpenBB app
 
-OpenBB Terminal will make POST requests to the `query` endpoint defined in your
+The OpenBB app will make POST requests to the `query` endpoint defined in your
 `copilots.json` file (more on this later). The payload of this request will
 contain data such as the current conversation's messages, any explicitly-added
 context, information about widgets on the currently-active dashboard, URLs to
@@ -75,7 +74,7 @@ The core of the query request schema you must implement is as follows:
     },
     ...
   ],
-  "widgets": [  # <-- the widgets currently visible on the active dashboard on Terminal Pro (optional)
+  "widgets": [  # <-- the widgets currently visible on the active dashboard on the OpenBB app (optional)
     {
       "uuid": "3fa85f64-5717-4562-b3fc-2c963f66afa6",  # <-- the UUID of the widget
       "name": "<widget name>",  # <-- the name of the widget
@@ -100,7 +99,7 @@ results. Each message has a `role` and `content`.
 The simplest example is when no function calling is involved, which simply
 consists of an array of `human` and `ai` messages.
 
-OpenBB Terminal automatically appends all return `ai` messages (from your Copilot)
+The OpenBB app automatically appends all return `ai` messages (from your Copilot)
 to the `messages` array of any follow-up request.
 
 ```python
@@ -137,14 +136,13 @@ to the `messages` array of any follow-up request.
 }
 ```
 
-Function calls to Terminal Pro (such as when retrieving widget data), as well as the results of those function calls (containing the widget data), are also included in the `messages` array. For information on function calling, see the "Function Calling" section below.
+Function calls to the OpenBB app (such as when retrieving widget data), as well as the results of those function calls (containing the widget data), are also included in the `messages` array. For information on function calling, see the "Function Calling" section below.
 
 #### `context`
 
-This is an optional array of widget data that will be sent by OpenBB Terminal
+This is an optional array of widget data that will be sent by the OpenBB app
 when widgets have been added as context explicitly by the user. This happens
-when the user clicks on the "Add as Context" button on a widget in OpenBB
-Terminal.
+when the user clicks on the "Add as Context" button on a widget in the OpenBB app.
 
 <img src="https://github.com/user-attachments/assets/6c84dc5b-7615-4483-a956-67ac526d5800" alt="explicit_context" width="70%"/>
 
@@ -191,11 +189,11 @@ The `context` field works as follows:
 #### `widgets`
 
 This is an array of widgets that are currently visible on the active dashboard
-on Terminal Pro.
+on the OpenBB app.
 **This is only useful if you're planning on implementing function calling in
 *your custom copilot** (which is recommended, but not required), which
 allows it to request widget data from the user's currently-active dashboard on
-OpenBB Terminal.
+the OpenBB app.
 
 ```python
 {
@@ -226,12 +224,12 @@ OpenBB Terminal.
 
 ## Response Schema
 
-Your custom copilot must respond to OpenBB Terminal's request using Server-Sent Events (SSEs).
+Your custom copilot must respond to the OpenBB app's request using Server-Sent Events (SSEs).
 
-OpenBB Terminal can process the following SSEs:
+The OpenBB app can process the following SSEs:
 
-- `copilotMessageChunk`: Used to return streamed copilot tokens (partial responses) back to OpenBB Terminal. These responses can be streamed as they are generated.
-- `copilotFunctionCall`: Used to request data (e.g., widget data) or perform a specific function. This instructs Terminal Pro to take further action on the client's side. This is only necessary if you're planning on implementing function calling in your custom copilot.
+- `copilotMessageChunk`: Used to return streamed copilot tokens (partial responses) back to the OpenBB app. These responses can be streamed as they are generated.
+- `copilotFunctionCall`: Used to request data (e.g., widget data) or perform a specific function. This instructs the OpenBB app to take further action on the client's side. This is only necessary if you're planning on implementing function calling in your custom copilot.
 
 #### `copilotMessageChunk`
 The message chunk SSE has the following format:
@@ -277,7 +275,7 @@ the UUIDs in the `widgets` array of the request).
 ## Function Calling
 
 By adding function calling to your copilot, it will be able to request data that
-is visible on a user's currently-active dashboard in OpenBB Terminal.
+is visible on a user's currently-active dashboard in the OpenBB app.
 
 A list of all widgets currently visible on a user's dashboard is sent to your
 copilot in the `widgets` array of the request payload.
@@ -290,9 +288,9 @@ event: copilotFunctionCall
 data: {"function":"get_widget_data","input_arguments":{"widget_uuid":"c276369e-e469-4689-b5fe-3f8c76f7c45a"}}
 ```
 
-After emitting a `copilotFunctionCall` event, you must close the connection and wait for a new query request from OpenBB Terminal.
+After emitting a `copilotFunctionCall` event, you must close the connection and wait for a new query request from the OpenBB app.
 
-When a `copilotFunctionCall` event is received, OpenBB Terminal will retrieve
+When a `copilotFunctionCall` event is received, the OpenBB app will retrieve
 the data, and initiate a **new** query request. This new query request will
 include the original function call, as well as the function call result in the
 `messages` array.
@@ -321,11 +319,11 @@ Notice that:
 - Both the function call and the function call result are included in the `messages` array. 
 - The `content` field of the function call `ai` message is a verbatim string-encoded JSON object of the `data` field of the `copilotFunctionCall` event (this is a very useful mechanism for smuggling additional metadata related to the function call, if your copilot needs it).
 
-Currently, the only function call supported by the OpenBB Terminal is `get_widget_data`, which retrieves data from a specific widget.
+Currently, the only function call supported by the OpenBB app is `get_widget_data`, which retrieves data from a specific widget.
 
 ### Function call example
 
-Your custom copilot receives the following request from OpenBB Terminal:
+Your custom copilot receives the following request from the OpenBB app:
 
 ```json
 {
@@ -360,7 +358,7 @@ event: copilotFunctionCall
 data: {"function":"get_widget_data","input_arguments":{"widget_uuid":"38181a68-9650-4940-84fb-a3f29c8869f3"}}
 ```
 
-OpenBB Terminal will then execute the specified function, and make a new query request to your custom copilot:
+The OpenBB app will then execute the specified function, and make a new query request to your custom copilot:
 
 ```python
 {
@@ -431,9 +429,9 @@ data: {"delta":" $150.75."}
 ```
 
 
-## Configuring your custom copilot for OpenBB Terminal (`copilots.json`)
+## Configuring your custom copilot for the OpenBB app (`copilots.json`)
 
-To integrate your custom copilot with OpenBB Terminal, you need to configure and
+To integrate your custom copilot with the OpenBB app, you need to configure and
 serve a `copilots.json` file. This file defines how your custom copilot connects
 with the frontend, including which features are supported by your custom
 copilot, and where requests  should be sent.  
@@ -449,7 +447,7 @@ Here is an example copilots.json configuration:
     "hasStreaming": true, # <-- whether your copilot supports streaming responses via SSEs. This must always be true.
     "hasFunctionCalling": true, # <-- whether your copilot supports function calling
     "endpoints": {
-      "query": "<url>" # <-- the URL that Terminal Pro will send requests to. For example, "http://localhost:7777/v1/query"
+      "query": "<url>" # <-- the URL that the OpenBB app will send requests to. For example, "http://localhost:7777/v1/query"
     }
   }
 }
