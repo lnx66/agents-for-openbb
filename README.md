@@ -222,14 +222,28 @@ the OpenBB app.
 }
 ```
 
-## Response Schema
+## Responding to the OpenBB app
 
-Your custom copilot must respond to the OpenBB app's request using Server-Sent Events (SSEs).
+Your custom copilot must respond to the OpenBB app's request using a variety of Server-Sent Events (SSEs).
 
 The OpenBB app can process the following SSEs:
 
-- `copilotMessageChunk`: Used to return streamed copilot tokens (partial responses) back to the OpenBB app. These responses can be streamed as they are generated.
-- `copilotFunctionCall`: Used to request data (e.g., widget data) or perform a specific function. This instructs the OpenBB app to take further action on the client's side. This is only necessary if you're planning on implementing function calling in your custom copilot.
+- `copilotMessageChunk`: Used to return streamed copilot tokens (partial
+responses) back to the OpenBB app. These responses can be streamed as they are
+generated.
+- `copilotMessageArtifact`: Used to return an artifact to the OpenBB app as part
+of the Copilot's response.  This allows your copilot to return tables, charts,
+and long-form text excerpts that will be rendered by the OpenBB app. Often
+interleaved the `copilotMessageChunk` SSEs.
+- `copilotCitationCollection`: Used to return a collection of citations back to the OpenBB app. This is useful for returning structured data, such as a list of news articles, research reports, or other sources that were used to generate the Copilot's response. This should be returned after the `copilotMessageChunk` SSEs have finished streaming.
+- `copilotFunctionCall`: Used to request data (e.g., widget data) or perform a
+specific function. This instructs the OpenBB app to take further action on the
+client's side. This is only necessary if you're planning on implementing
+function calling in your custom copilot.
+- `copilotStatusUpdate`: Used to send status updates or "reasoning steps" back to
+the OpenBB app. These are user-friendly "updates" that are displayed in the
+copilot window of the OpenBB app, and are useful for informing the user about what your custom copilot is doing under-the-hood.
+- `copilot
 
 #### `copilotMessageChunk`
 The message chunk SSE has the following format:
