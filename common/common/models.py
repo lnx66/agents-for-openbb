@@ -1,6 +1,6 @@
 from typing import Any, Literal
 from uuid import UUID
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, JsonValue, field_validator
 from enum import Enum
 import json
 
@@ -10,15 +10,37 @@ class RoleEnum(str, Enum):
     human = "human"
     tool = "tool"
 
+class ChartParameters(BaseModel):
+    chartType: Literal["line", "bar", "scatter"]
+    xKey: str
+    yKey: list[str]
 
-class LlmFunctionCallResult(BaseModel):
+class DataFormat(BaseModel):
+    """Describe the format of the data, and how it should be handled."""
+
+    type: Literal["text", "table", "chart"] | None = None
+    chart_params: ChartParameters | None = None
+
+class DataContent(BaseModel):
+    content: JsonValue = Field(
+        description="The data content, which must be JSON-serializable. Can be a primitive type (str, int, float, bool), list, or dict."  # noqa: E501
+    )
+    data_format: DataFormat | None = Field(
+        default=None,
+        description="Optional. How the data should be parsed. If not provided, a best-effort attempt will be made to automatically determine the data format.",  # noqa: E501
+    )
+
+class LlmClientFunctionCallResult(BaseModel):
+    """Contains the result of a function call made against a client."""
+
     role: RoleEnum = RoleEnum.tool
     function: str = Field(description="The name of the called function.")
     input_arguments: dict[str, Any] | None = Field(
         default=None, description="The input arguments passed to the function"
     )
-    content: str = Field(description="The result of the function call.")
-
+    data: DataContent = Field(
+        description="The content of the function call."
+    )
 
 class LlmFunctionCall(BaseModel):
     function: str
@@ -80,7 +102,7 @@ class Widget(BaseModel):
 
 
 class AgentQueryRequest(BaseModel):
-    messages: list[LlmFunctionCallResult | LlmMessage] = Field(
+    messages: list[LlmClientFunctionCallResult | LlmMessage] = Field(
         description="A list of messages to submit to the copilot."
     )
     context: str | list[RawContext] | None = Field(

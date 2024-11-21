@@ -243,7 +243,6 @@ function calling in your custom copilot.
 - `copilotStatusUpdate`: Used to send status updates or "reasoning steps" back to
 the OpenBB app. These are user-friendly "updates" that are displayed in the
 copilot window of the OpenBB app, and are useful for informing the user about what your custom copilot is doing under-the-hood.
-- `copilot
 
 #### `copilotMessageChunk`
 The message chunk SSE has the following format:
@@ -268,6 +267,29 @@ data: {"delta":"i"}
 event: copilotMessageChunk
 data: {"delta":"!"}
 ```
+
+#### `copilotMessageArtifact`
+The message artifact SSE has the following format:
+
+```
+event: copilotMessageArtifact
+data: {"type": "<type>", "uuid": "<uuid>", "content": "<content>", "chart_params": <chart_params>}
+```
+
+An artifact can be a table, chart, or long-form text excerpt.
+Let's go over each of these with examples:
+
+A text artifact:
+
+```
+{
+    "type": "text",
+    "uuid": "123e4567-e89b-12d3-a456-426614174000",
+    "content": "This is a sample text content",
+}
+```
+
+
 
 #### `copilotFunctionCall` (only required for function calling)
 The function call SSE has the following format:
