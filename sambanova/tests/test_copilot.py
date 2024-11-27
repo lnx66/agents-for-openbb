@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 from sambanova.main import app
 import pytest
 from pathlib import Path
-from common.testing import capture_stream_response
+from common.testing import CopilotResponse
 
 test_client = TestClient(app)
 
@@ -27,10 +27,11 @@ def test_query():
     test_payload = json.load(open(test_payload_path))
 
     response = test_client.post("/v1/query", json=test_payload)
-    event_name, captured_stream = capture_stream_response(response.text)
     assert response.status_code == 200
-    assert event_name == "copilotMessageChunk"
-    assert "2" in captured_stream
+
+    CopilotResponse(response.text).has_any(
+        event_type="copilotMessage", content_contains="2"
+    )
 
 
 def test_query_conversation():
@@ -40,10 +41,10 @@ def test_query_conversation():
     test_payload = json.load(open(test_payload_path))
 
     response = test_client.post("/v1/query", json=test_payload)
-    event_name, captured_stream = capture_stream_response(response.text)
     assert response.status_code == 200
-    assert event_name == "copilotMessageChunk"
-    assert "4" in captured_stream
+    CopilotResponse(response.text).has_any(
+        event_type="copilotMessage", content_contains="4"
+    )
 
 
 def test_query_with_context():
@@ -54,10 +55,9 @@ def test_query_with_context():
     )
     test_payload = json.load(open(test_payload_path))
     response = test_client.post("/v1/query", json=test_payload)
-    event_name, captured_stream = capture_stream_response(response.text)
-    assert response.status_code == 200
-    assert event_name == "copilotMessageChunk"
-    assert "pizza" in captured_stream.lower()
+    CopilotResponse(response.text).has_any(
+        event_type="copilotMessage", content_contains="pizza"
+    )
 
 
 def test_query_no_messages():
@@ -69,61 +69,44 @@ def test_query_no_messages():
 
 
 def test_query_handle_function_call():
-    payload = {
-        "messages": [
-            {
-                "role": "human",
-                "content": "What's the weather in San Francisco and London?",
-            }
-        ],
-    }
-    response = test_client.post("/v1/query", json=payload)
-    event_name, captured_stream = capture_stream_response(response.text)
-    breakpoint()
+    test_payload_path = (
+        Path(__file__).parent.parent.parent
+        / "test_payloads"
+        / "retrieve_widget_from_dashboard.json"
+    )
+    test_payload = json.load(open(test_payload_path))
+    response = test_client.post("/v1/query", json=test_payload)
+
+    (
+        CopilotResponse(response.text)
+        .starts_with(
+            event_type="copilotStatusUpdate", content_contains="Calling function"
+        )
+        .then(event_type="copilotFunctionCall", content_contains="get_widget_data")
+        .and_(content_contains="91ae1153-7b4d-451c-adc5-49856e90a0e6")
+    )
+
 
 def test_query_handle_function_call_result():
-    payload = {
-        "widgets": [
-            {
-                "uuid": "91ae1153-7b4d-451c-adc5-49856e90a0e6",
-                "name": "Yield Curve",
-                "description": "Get yield curve data by country and date.",
-                "metadata": {"source": "EconDB", "lastUpdated": 1732178181043},
-            }
-        ],
-        "custom_direct_retrieval_endpoints": [],
-        "messages": [
-            {
-                "role": "human",
-                "content": "what can you tell me about the yield curve data?",
-            },
-            {
-                "role": "ai",
-                "content": '{"function":"get_widget_data","input_arguments":{"widget_uuid":"91ae1153-7b4d-451c-adc5-49856e90a0e6"},"copilot_function_call_arguments":{"widget_uuid":"91ae1153-7b4d-451c-adc5-49856e90a0e6"}}',
-            },
-            {
-                "role": "tool",
-                "function": "get_widget_data",
-                "input_arguments": {
-                    "widget_uuid": "91ae1153-7b4d-451c-adc5-49856e90a0e6"
-                },
-                "data": {
-                    "content": '[{"date":"2024-11-13","maturity":"month_1","rate":0.046900000000000004},{"date":"2024-11-13","maturity":"month_3","rate":0.046},{"date":"2024-11-13","maturity":"month_6","rate":0.044000000000000004},{"date":"2024-11-13","maturity":"year_1","rate":0.0431},{"date":"2024-11-13","maturity":"year_2","rate":0.042699999999999995},{"date":"2024-11-13","maturity":"year_3","rate":0.0425},{"date":"2024-11-13","maturity":"year_5","rate":0.043},{"date":"2024-11-13","maturity":"year_7","rate":0.0438},{"date":"2024-11-13","maturity":"year_10","rate":0.0444},{"date":"2024-11-13","maturity":"year_20","rate":0.0473},{"date":"2024-11-13","maturity":"year_30","rate":0.0463}]'
-                },
-            },
-        ],
-    }
-    response = test_client.post("/v1/query", json=payload)
-    event_name, captured_stream = capture_stream_response(response.text)
+    test_payload_path = (
+        Path(__file__).parent.parent.parent
+        / "test_payloads"
+        / "retrieve_widget_from_dashboard_with_result.json"
+    )
+    test_payload = json.load(open(test_payload_path))
+    response = test_client.post("/v1/query", json=test_payload)
     assert response.status_code == 200
-    assert "0.0469" in captured_stream  # month_1
-    assert "0.046" in captured_stream   # month_3
-    assert "0.044" in captured_stream   # month_6
-    assert "0.0431" in captured_stream  # year_1
-    assert "0.0427" in captured_stream  # year_2
-    assert "0.0425" in captured_stream  # year_3
-    assert "0.043" in captured_stream   # year_5
-    assert "0.0438" in captured_stream  # year_7
-    assert "0.0444" in captured_stream  # year_10
-    assert "0.0473" in captured_stream  # year_20
-    assert "0.0463" in captured_stream  # year_30
+    (
+        CopilotResponse(response.text)
+        .has_any(event_type="copilotMessage", content_contains="0.0469")  # month_1
+        .has_any(event_type="copilotMessage", content_contains="0.046")  # month_3
+        .has_any(event_type="copilotMessage", content_contains="0.044")  # month_6
+        .has_any(event_type="copilotMessage", content_contains="0.0431")  # year_1
+        .has_any(event_type="copilotMessage", content_contains="0.0427")  # year_2
+        .has_any(event_type="copilotMessage", content_contains="0.0425")  # year_3
+        .has_any(event_type="copilotMessage", content_contains="0.043")  # year_5
+        .has_any(event_type="copilotMessage", content_contains="0.0438")  # year_7
+        .has_any(event_type="copilotMessage", content_contains="0.0444")  # year_10
+        .has_any(event_type="copilotMessage", content_contains="0.0473")  # year_20
+        .has_any(event_type="copilotMessage", content_contains="0.0463")  # year_30
+    )

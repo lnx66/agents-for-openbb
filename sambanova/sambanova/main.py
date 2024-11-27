@@ -87,6 +87,7 @@ def create_message_stream(
     for chunk in content:
         yield {"event": "copilotMessageChunk", "data": json.dumps({"delta": chunk})}
 
+
 def create_status_update_stream(
     content: StatusUpdateSSE,
 ) -> Generator[dict, None, None]:
@@ -174,14 +175,14 @@ def do_completion(
             model=model,
             messages=formatted_messages,
             stream=stream,
-            tools=tools,
+            tools=tools if widgets else None,
         )
         return StreamedStr(response)
     else:
         response = client.chat.completions.create(
             model=model,
             messages=formatted_messages,
-            tools=tools,
+            tools=tools if widgets else None,
             stream=stream,
         )
         if response.choices is None:

@@ -1,27 +1,31 @@
 {
+    "widgets": [
+        {
+            "uuid": "91ae1153-7b4d-451c-adc5-49856e90a0e6",
+            "name": "Yield Curve", 
+            "description": "Get yield curve data by country and date.",
+            "metadata": {"source": "EconDB", "lastUpdated": 1732178181043}
+        }
+    ],
+    "custom_direct_retrieval_endpoints": [],
     "messages": [
         {
             "role": "human",
-            "content": "what is the weather in London?"
+            "content": "what can you tell me about the yield curve data?"
         },
         {
             "role": "ai",
-            "content": "{\"function\": \"get_widget_data\", \"input_arguments\": {\"widget_uuid\": \"ff6368ec-a397-4baf-9f5a-fecd9fd797a3\"}, \"copilot_function_call_arguments\": {\"widget_uuid\": \"ff6368ec-a397-4baf-9f5a-fecd9fd797a3\"}}"
+            "content": "{\"function\":\"get_widget_data\",\"input_arguments\":{\"widget_uuid\":\"91ae1153-7b4d-451c-adc5-49856e90a0e6\"},\"copilot_function_call_arguments\":{\"widget_uuid\":\"91ae1153-7b4d-451c-adc5-49856e90a0e6\"}}"
         },
         {
             "role": "tool",
             "function": "get_widget_data",
             "input_arguments": {
-                "widget_uuid": "ff6368ec-a397-4baf-9f5a-fecd9fd797a3"
+                "widget_uuid": "91ae1153-7b4d-451c-adc5-49856e90a0e6"
             },
-            "content": "The weather in London is 10 degrees Celsius."
-        }
-    ],
-    "widgets": [
-        {
-            "uuid": "ff6368ec-a397-4baf-9f5a-fecd9fd797a3",
-            "name": "get_weather",
-            "description": "Get the weather for a location"
+            "data": {
+                "content": "[{\"date\":\"2024-11-13\",\"maturity\":\"month_1\",\"rate\":0.046900000000000004},{\"date\":\"2024-11-13\",\"maturity\":\"month_3\",\"rate\":0.046},{\"date\":\"2024-11-13\",\"maturity\":\"month_6\",\"rate\":0.044000000000000004},{\"date\":\"2024-11-13\",\"maturity\":\"year_1\",\"rate\":0.0431},{\"date\":\"2024-11-13\",\"maturity\":\"year_2\",\"rate\":0.042699999999999995},{\"date\":\"2024-11-13\",\"maturity\":\"year_3\",\"rate\":0.0425},{\"date\":\"2024-11-13\",\"maturity\":\"year_5\",\"rate\":0.043},{\"date\":\"2024-11-13\",\"maturity\":\"year_7\",\"rate\":0.0438},{\"date\":\"2024-11-13\",\"maturity\":\"year_10\",\"rate\":0.0444},{\"date\":\"2024-11-13\",\"maturity\":\"year_20\",\"rate\":0.0473},{\"date\":\"2024-11-13\",\"maturity\":\"year_30\",\"rate\":0.0463}]"
+            }
         }
     ]
 }
