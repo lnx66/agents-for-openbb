@@ -42,7 +42,7 @@ class LlmClientFunctionCallResult(BaseModel):
     input_arguments: dict[str, Any] | None = Field(
         default=None, description="The input arguments passed to the function"
     )
-    data: DataContent = Field(description="The content of the function call.")
+    data: list[DataContent] = Field(description="The content of the function call.")
 
 
 class LlmFunctionCall(BaseModel):

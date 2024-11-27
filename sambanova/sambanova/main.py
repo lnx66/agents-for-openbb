@@ -151,7 +151,10 @@ def do_completion(
                     {
                         "role": "tool",
                         "tool_call_id": tool_call_id,
-                        "content": message.data.content,
+                        # TODO: We can improve the formatting of the content here to be more readable for an LLM.
+                        "content": "\n\n".join(
+                            data.model_dump_json() for data in message.data
+                        ),
                     }
                 )
 
@@ -176,6 +179,7 @@ def do_completion(
             messages=formatted_messages,
             stream=stream,
             tools=tools if widgets else None,
+            temperature=0.0,
         )
         return StreamedStr(response)
     else:
@@ -184,6 +188,7 @@ def do_completion(
             messages=formatted_messages,
             tools=tools if widgets else None,
             stream=stream,
+            temperature=0.0,
         )
         if response.choices is None:
             raise ValueError(f"No choices returned from OpenAI: {response}")

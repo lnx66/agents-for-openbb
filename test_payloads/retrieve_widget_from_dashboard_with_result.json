@@ -11,21 +11,23 @@
     "messages": [
         {
             "role": "human",
-            "content": "what can you tell me about the yield curve data?"
+            "content": "what can you tell me about the yield curve data? Give me % values with 2 decimal places."
         },
         {
             "role": "ai",
-            "content": "{\"function\":\"get_widget_data\",\"input_arguments\":{\"widget_uuid\":\"91ae1153-7b4d-451c-adc5-49856e90a0e6\"},\"copilot_function_call_arguments\":{\"widget_uuid\":\"91ae1153-7b4d-451c-adc5-49856e90a0e6\"}}"
+            "content": "{\"function\":\"get_widget_data\",\"input_arguments\":{\"widget_uuids\":[\"91ae1153-7b4d-451c-adc5-49856e90a0e6\"]},\"copilot_function_call_arguments\":{\"widget_uuids\":[\"91ae1153-7b4d-451c-adc5-49856e90a0e6\"]}}"
         },
         {
             "role": "tool",
             "function": "get_widget_data",
             "input_arguments": {
-                "widget_uuid": "91ae1153-7b4d-451c-adc5-49856e90a0e6"
+                "widget_uuids": ["91ae1153-7b4d-451c-adc5-49856e90a0e6"]
             },
-            "data": {
-                "content": "[{\"date\":\"2024-11-13\",\"maturity\":\"month_1\",\"rate\":0.046900000000000004},{\"date\":\"2024-11-13\",\"maturity\":\"month_3\",\"rate\":0.046},{\"date\":\"2024-11-13\",\"maturity\":\"month_6\",\"rate\":0.044000000000000004},{\"date\":\"2024-11-13\",\"maturity\":\"year_1\",\"rate\":0.0431},{\"date\":\"2024-11-13\",\"maturity\":\"year_2\",\"rate\":0.042699999999999995},{\"date\":\"2024-11-13\",\"maturity\":\"year_3\",\"rate\":0.0425},{\"date\":\"2024-11-13\",\"maturity\":\"year_5\",\"rate\":0.043},{\"date\":\"2024-11-13\",\"maturity\":\"year_7\",\"rate\":0.0438},{\"date\":\"2024-11-13\",\"maturity\":\"year_10\",\"rate\":0.0444},{\"date\":\"2024-11-13\",\"maturity\":\"year_20\",\"rate\":0.0473},{\"date\":\"2024-11-13\",\"maturity\":\"year_30\",\"rate\":0.0463}]"
-            }
+            "data": [
+                {
+                    "content": "[{\"date\":\"2024-11-13\",\"maturity\":\"month_1\",\"rate\":0.046900000000000004},{\"date\":\"2024-11-13\",\"maturity\":\"month_3\",\"rate\":0.046},{\"date\":\"2024-11-13\",\"maturity\":\"month_6\",\"rate\":0.044000000000000004},{\"date\":\"2024-11-13\",\"maturity\":\"year_1\",\"rate\":0.0431},{\"date\":\"2024-11-13\",\"maturity\":\"year_2\",\"rate\":0.042699999999999995},{\"date\":\"2024-11-13\",\"maturity\":\"year_3\",\"rate\":0.0425},{\"date\":\"2024-11-13\",\"maturity\":\"year_5\",\"rate\":0.043},{\"date\":\"2024-11-13\",\"maturity\":\"year_7\",\"rate\":0.0438},{\"date\":\"2024-11-13\",\"maturity\":\"year_10\",\"rate\":0.0444},{\"date\":\"2024-11-13\",\"maturity\":\"year_20\",\"rate\":0.0473},{\"date\":\"2024-11-13\",\"maturity\":\"year_30\",\"rate\":0.0463}]"
+                }
+            ]
         }
     ]
 }

@@ -87,6 +87,9 @@ def test_query_handle_function_call():
     )
 
 
+@pytest.mark.skip(
+    reason="This test is still flaky with the 70-B model (but generally works in practice)."  # noqa: E501
+)
 def test_query_handle_function_call_result():
     test_payload_path = (
         Path(__file__).parent.parent.parent

@@ -24,7 +24,7 @@ from common.models import (
     FunctionCallSSE,
     FunctionCallSSEData,
     LlmFunctionCall,
-    LlmFunctionCallResult,
+    LlmClientFunctionCallResult,
     RoleEnum,
 )
 from .prompts import SYSTEM_PROMPT
@@ -123,10 +123,10 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
                 )
                 chat_messages.append(AssistantMessage(function_call))
         elif message.role == RoleEnum.tool:
-            if isinstance(message, LlmFunctionCallResult):
+            if isinstance(message, LlmClientFunctionCallResult):
                 chat_messages.append(
                     FunctionResultMessage(
-                        content=sanitize_message(message.content),
+                        content=sanitize_message(message.data.content),
                         function_call=function_call,  # type: ignore
                     )
                 )

@@ -83,7 +83,7 @@ def test_query_function_call():
     assert event_name == "copilotFunctionCall"
     assert function_call["function"] == "get_widget_data"
     assert function_call["input_arguments"] == {
-        "widget_uuid": "ff6368ec-a397-4baf-9f5a-fecd9fd797a3"
+        "widget_uuid": "91ae1153-7b4d-451c-adc5-49856e90a0e6"
     }
 
 
@@ -99,4 +99,14 @@ def test_query_function_call_gives_final_answer():
 
     assert response.status_code == 200
     assert event_name == "copilotMessageChunk"
-    assert "10 degrees" in captured_stream
+    assert "4.69%" in captured_stream  # month_1
+    assert "4.60%" in captured_stream  # month_3
+    assert "4.40%" in captured_stream  # month_6
+    assert "4.31%" in captured_stream  # year_1
+    assert "4.27%" in captured_stream  # year_2
+    assert "4.25%" in captured_stream  # year_3
+    assert "4.30%" in captured_stream  # year_5
+    assert "4.38%" in captured_stream  # year_7
+    assert "4.44%" in captured_stream  # year_10
+    assert "4.73%" in captured_stream  # year_20
+    assert "4.63%" in captured_stream  # year_30
