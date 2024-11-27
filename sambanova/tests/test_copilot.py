@@ -1,6 +1,6 @@
 import json
 from fastapi.testclient import TestClient
-from advanced_example_copilot.main import app
+from sambanova.main import app
 import pytest
 from pathlib import Path
 from common.testing import capture_stream_response
@@ -78,7 +78,8 @@ def test_query_handle_function_call():
         ],
     }
     response = test_client.post("/v1/query", json=payload)
-
+    event_name, captured_stream = capture_stream_response(response.text)
+    breakpoint()
 
 def test_query_handle_function_call_result():
     payload = {
@@ -115,5 +116,14 @@ def test_query_handle_function_call_result():
     response = test_client.post("/v1/query", json=payload)
     event_name, captured_stream = capture_stream_response(response.text)
     assert response.status_code == 200
-    assert event_name == "copilotFunctionCall"
-    assert "get_widget_data" in captured_stream
+    assert "0.0469" in captured_stream  # month_1
+    assert "0.046" in captured_stream   # month_3
+    assert "0.044" in captured_stream   # month_6
+    assert "0.0431" in captured_stream  # year_1
+    assert "0.0427" in captured_stream  # year_2
+    assert "0.0425" in captured_stream  # year_3
+    assert "0.043" in captured_stream   # year_5
+    assert "0.0438" in captured_stream  # year_7
+    assert "0.0444" in captured_stream  # year_10
+    assert "0.0473" in captured_stream  # year_20
+    assert "0.0463" in captured_stream  # year_30

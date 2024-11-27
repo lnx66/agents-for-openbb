@@ -2,7 +2,7 @@ import os
 import re
 import json
 from pathlib import Path
-from typing import AsyncGenerator, Callable, Generator
+from typing import Any, AsyncGenerator, Callable, Generator
 import uuid
 
 from fastapi import FastAPI
@@ -23,6 +23,8 @@ from common.models import (
     LlmClientFunctionCallResult,
     LlmFunctionCall,
     LlmMessage,
+    StatusUpdateSSE,
+    StatusUpdateSSEData,
 )
 from .prompts import SYSTEM_PROMPT, format_widgets
 from .functions import llm_get_widget_data
@@ -85,6 +87,11 @@ def create_message_stream(
     for chunk in content:
         yield {"event": "copilotMessageChunk", "data": json.dumps({"delta": chunk})}
 
+def create_status_update_stream(
+    content: StatusUpdateSSE,
+) -> Generator[dict, None, None]:
+    yield content.model_dump()
+
 
 async def create_function_call_stream(
     content: FunctionCallSSE,
@@ -99,21 +106,12 @@ def do_completion(
     stream: bool = True,
     **kwargs,
 ) -> StreamedStr | str:
+    widgets = kwargs.get("widgets", [])
+
     client = openai.OpenAI(
         api_key=os.environ.get("SAMBANOVA_API_KEY"),
         base_url="https://api.sambanova.ai/v1",
     )
-
-    #    "role": "assistant",
-    #     "tool_calls": [
-    #         {
-    #             "id": "call_62136354",
-    #             "type": "function",
-    #             "function": {
-    #                 "arguments": "{'order_id': 'order_12345'}",
-    #                 "name": "get_delivery_date"
-    #             }
-    #         }
 
     formatted_messages = [{"role": "system", "content": SYSTEM_PROMPT.format(**kwargs)}]
     for message in messages:
@@ -186,6 +184,8 @@ def do_completion(
             tools=tools,
             stream=stream,
         )
+        if response.choices is None:
+            raise ValueError(f"No choices returned from OpenAI: {response}")
         if response.choices[0].message.content:
             return response.choices[0].message.content
         elif response.choices[0].message.tool_calls:
@@ -207,46 +207,50 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
 
     logger.info(f"Received query: {request}")
 
-    # Main execution loop
-    calls = 0
-    MAX_CALLS = 10
-    while calls < MAX_CALLS:
-        calls += 1
+    async def execution_loop() -> AsyncGenerator[Any, None]:
+        calls = 0
+        MAX_CALLS = 10
+        while calls < MAX_CALLS:
+            calls += 1
 
-        response = do_completion(
-            messages=request.messages,
-            context=request.context,
-            widgets=format_widgets(request.widgets) if request.widgets else [],
-            functions=[llm_get_widget_data],
-            stream=False,
-        )
+            response = do_completion(
+                messages=request.messages,
+                context=request.context,
+                widgets=format_widgets(request.widgets) if request.widgets else [],
+                functions=[llm_get_widget_data],
+                stream=False,
+            )
 
-        if isinstance(response, StreamedStr):
-            return EventSourceResponse(
-                content=create_message_stream(response),
-                media_type="text/event-stream",
-            )
-        elif isinstance(response, str):
-            return EventSourceResponse(
-                content=create_message_stream(response),
-                media_type="text/event-stream",
-            )
-        elif isinstance(response, FunctionCall):
-            logger.info(f"Function call: {response}")
-            match response.function.__name__:
-                # We need to yield the function call to the OpenBB app so that
-                # it can retrieve the widget data for us.
-                case "llm_get_widget_data":
-                    print("Streaming back function call", response.arguments)
-                    return EventSourceResponse(
-                        content=create_function_call_stream(
-                            FunctionCallSSE(
-                                data=FunctionCallSSEData(
-                                    function="get_widget_data",
-                                    input_arguments=response.arguments,
-                                    copilot_function_call_arguments=response.arguments,
-                                )
-                            )
-                        ),
-                        media_type="text/event-stream",
+            if isinstance(response, StreamedStr):
+                for event in create_message_stream(response):
+                    yield event
+                break
+            elif isinstance(response, str):
+                for event in create_message_stream(response):
+                    yield event
+                break
+            elif isinstance(response, FunctionCall):
+                logger.info(f"Function call: {response}")
+
+                # Status update for function call
+                yield StatusUpdateSSE(
+                    data=StatusUpdateSSEData(
+                        eventType="INFO",
+                        message="Calling function",
+                        group="reasoning",
                     )
+                ).model_dump()
+
+                match response.function.__name__:
+                    case "llm_get_widget_data":
+                        print("Streaming back function call", response.arguments)
+                        yield FunctionCallSSE(
+                            data=FunctionCallSSEData(
+                                function="get_widget_data",
+                                input_arguments=response.arguments,
+                                copilot_function_call_arguments=response.arguments,
+                            )
+                        ).model_dump()
+                        return
+
+    return EventSourceResponse(execution_loop())

@@ -20,7 +20,11 @@ common = {path = "../common", develop = true}
 ruff = "^0.6.9"
 pytest = "^8.3.1"
 pytest-asyncio = "^0.23.8"
+ipdb = "^0.13.13"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+addopts = "--pdbcls=IPython.terminal.debugger:TerminalPdb"
