@@ -83,7 +83,7 @@ def test_query_function_call():
     assert event_name == "copilotFunctionCall"
     assert function_call["function"] == "get_widget_data"
     assert function_call["input_arguments"] == {
-        "widget_uuid": "91ae1153-7b4d-451c-adc5-49856e90a0e6"
+        "widget_uuids": ["91ae1153-7b4d-451c-adc5-49856e90a0e6"]
     }
 
 
