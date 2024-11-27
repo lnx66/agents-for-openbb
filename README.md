@@ -289,23 +289,20 @@ A text artifact:
 }
 ```
 
-
-
-#### `copilotFunctionCall` (only required for function calling)
+#### `copilotFunctionCall` (only required for function calling -- see below)
 The function call SSE has the following format:
 
 ```
 event: copilotFunctionCall
-data: {"function":"get_widget_data","input_arguments":{"widget_uuid":"c276369e-e469-4689-b5fe-3f8c76f7c45a"}}
+data: {"function":"get_widget_data","input_arguments":{"widget_uuids":["c276369e-e469-4689-b5fe-3f8c76f7c45a"]}}
 ```
 
 Again, the `data` field must be a JSON object. The `function` field is the name
 of the function to be called (currently only `get_widget_data` is supported),
 and the `input_arguments` field is a dictionary of arguments to be passed to the
 function. For the `get_widget_data` function, the only required argument is
-`widget_uuid`, which is the UUID of the widget to retrieve data for (from one of
+`widget_uuids`, which is a list of UUID of the widgets to retrieve data for (from one of
 the UUIDs in the `widgets` array of the request).
-
 
 
 ## Function Calling
@@ -321,7 +318,7 @@ To retrieve the data from a widget, your copilot should respond with a
 
 ```
 event: copilotFunctionCall
-data: {"function":"get_widget_data","input_arguments":{"widget_uuid":"c276369e-e469-4689-b5fe-3f8c76f7c45a"}}
+data: {"function":"get_widget_data","input_arguments":{"widget_uuids":["c276369e-e469-4689-b5fe-3f8c76f7c45a"]}}
 ```
 
 After emitting a `copilotFunctionCall` event, you must close the connection and wait for a new query request from the OpenBB app.
@@ -338,14 +335,16 @@ include the original function call, as well as the function call result in the
     ...
     {
       "role": "ai",
-      "content": "{\"function\":\"get_widget_data\",\"input_arguments\":{\"widget_uuid\":\"c276369e-e469-4689-b5fe-3f8c76f7c45a\"}}"
+      "content": "{\"function\":\"get_widget_data\",\"input_arguments\":{\"widget_uuids\":[\"c276369e-e469-4689-b5fe-3f8c76f7c45a\"]}}"
     },
     {
       "role": "tool",
       "function": "get_widget_data",
-      "data": {
-        "content": "<data>"
-      } 
+      "data": [
+        {
+          "content": "<data>"
+        }
+      ]
     }
   ]
 }
@@ -391,7 +390,7 @@ Your copilot then responds with the following SSE and close the connection:
 
 ```
 event: copilotFunctionCall
-data: {"function":"get_widget_data","input_arguments":{"widget_uuid":"38181a68-9650-4940-84fb-a3f29c8869f3"}}
+data: {"function":"get_widget_data","input_arguments":{"widget_uuids":["38181a68-9650-4940-84fb-a3f29c8869f3"]}}
 ```
 
 The OpenBB app will then execute the specified function, and make a new query request to your custom copilot:
@@ -405,14 +404,15 @@ The OpenBB app will then execute the specified function, and make a new query re
     },
     {
       "role": "ai",
-      "content": "{\"function\":\"get_widget_data\",\"input_arguments\":{\"widget_uuid\":\"38181a68-9650-4940-84fb-a3f29c8869f3\"}}"  
+      "content": "{\"function\":\"get_widget_data\",\"input_arguments\":{\"widget_uuids\":[\"38181a68-9650-4940-84fb-a3f29c8869f3\"]}}"  
     },
     {
       "role": "tool",
       "function": "get_widget_data",
-      "data": {
-        "content": "[{\"date\":\"2024-10-15T00:00:00-04:00\",\"open\":233.61,\"high\":237.49,\"low\":232.37,\"close\":233.85,\"volume\":61901688,\"vwap\":234.33,\"adj_close\":233.85,\"change\":0.24,\"change_percent\":0.0010274},{\"date\":\"2024-10-14T00:00:00-04:00\",\"open\":228.7,\"high\":231.73,\"low\":228.6,\"close\":231.3,\"volume\":39882100,\"vwap\":230.0825,\"adj_close\":231.3,\"change\":2.6,\"change_percent\":0.0114},{\"date\":\"2024-10-11T00:00:00-04:00\",\"open\":229.3,\"high\":233.2,\"low\":228.9,\"close\":231.0,\"volume\":32581944,\"vwap\":231.0333,\"adj_close\":231.0,\"change\":1.7,\"change_percent\":0.0074}, ... ]"
-      }
+      "data": [
+        {
+          "content": "[{\"date\":\"2024-10-15T00:00:00-04:00\",\"open\":233.61,\"high\":237.49,\"low\":232.37,\"close\":233.85,\"volume\":61901688,\"vwap\":234.33,\"adj_close\":233.85,\"change\":0.24,\"change_percent\":0.0010274},{\"date\":\"2024-10-14T00:00:00-04:00\",\"open\":228.7,\"high\":231.73,\"low\":228.6,\"close\":231.3,\"volume\":39882100,\"vwap\":230.0825,\"adj_close\":231.3,\"change\":2.6,\"change_percent\":0.0114},{\"date\":\"2024-10-11T00:00:00-04:00\",\"open\":229.3,\"high\":233.2,\"low\":228.9,\"close\":231.0,\"volume\":32581944,\"vwap\":231.0333,\"adj_close\":231.0,\"change\":1.7,\"change_percent\":0.0074}, ... ]"
+        }
     } 
   ],
   "widgets": [
