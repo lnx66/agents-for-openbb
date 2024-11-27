@@ -10,16 +10,19 @@ class RoleEnum(str, Enum):
     human = "human"
     tool = "tool"
 
+
 class ChartParameters(BaseModel):
     chartType: Literal["line", "bar", "scatter"]
     xKey: str
     yKey: list[str]
+
 
 class DataFormat(BaseModel):
     """Describe the format of the data, and how it should be handled."""
 
     type: Literal["text", "table", "chart"] | None = None
     chart_params: ChartParameters | None = None
+
 
 class DataContent(BaseModel):
     content: JsonValue = Field(
@@ -30,6 +33,7 @@ class DataContent(BaseModel):
         description="Optional. How the data should be parsed. If not provided, a best-effort attempt will be made to automatically determine the data format.",  # noqa: E501
     )
 
+
 class LlmClientFunctionCallResult(BaseModel):
     """Contains the result of a function call made against a client."""
 
@@ -38,9 +42,8 @@ class LlmClientFunctionCallResult(BaseModel):
     input_arguments: dict[str, Any] | None = Field(
         default=None, description="The input arguments passed to the function"
     )
-    data: DataContent = Field(
-        description="The content of the function call."
-    )
+    data: DataContent = Field(description="The content of the function call.")
+
 
 class LlmFunctionCall(BaseModel):
     function: str
@@ -155,13 +158,12 @@ class FunctionCallSSE(BaseSSE):
     data: FunctionCallSSEData
 
 
-
 class StatusUpdateSSEData(BaseModel):
     eventType: Literal["INFO", "WARNING", "ERROR"]
     message: str
     group: Literal["reasoning"] = "reasoning"
     details: list[dict[str, str | int | float | None]] | None = None
-    #artifacts: list[ClientArtifact] | None = None
+    # artifacts: list[ClientArtifact] | None = None
 
     @model_validator(mode="before")
     @classmethod
@@ -177,6 +179,7 @@ class StatusUpdateSSEData(BaseModel):
                         detail.pop(key, None)
         return values
 
+
 class StatusUpdateSSE(BaseSSE):
     event: Literal["copilotStatusUpdate"] = "copilotStatusUpdate"
-    data: StatusUpdateSSEData 
+    data: StatusUpdateSSEData
