@@ -24,12 +24,12 @@ Here's how to get your copilot up and running:
 ### Prerequisites
 
 Ensure you have poetry, a tool for dependency management and packaging in
-Python, as well as your Sambanova API key.
+Python, as well as your SambaNova API key.
 
 ### Installation and Running
 
 1. Clone this repository to your local machine.
-2. Set the Sambanova API key as an environment variable in your .bashrc or .zshrc file:
+2. Set the SambaNova API key as an environment variable in your .bashrc or .zshrc file:
 
 ``` sh
 # in .zshrc or .bashrc

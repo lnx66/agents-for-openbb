@@ -232,7 +232,7 @@ The OpenBB app can process the following SSEs:
 responses) back to the OpenBB app. These responses can be streamed as they are
 generated.
 - `copilotMessageArtifact`: Used to return an artifact to the OpenBB app as part
-of the Copilot's response.  This allows your copilot to return tables, charts,
+of the Copilot's response. This allows your copilot to return tables, charts,
 and long-form text excerpts that will be rendered by the OpenBB app. Often
 interleaved the `copilotMessageChunk` SSEs.
 - `copilotCitationCollection`: Used to return a collection of citations back to the OpenBB app. This is useful for returning structured data, such as a list of news articles, research reports, or other sources that were used to generate the Copilot's response. This should be returned after the `copilotMessageChunk` SSEs have finished streaming.
