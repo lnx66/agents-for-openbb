@@ -24,7 +24,7 @@ from common.models import (
     FunctionCallSSE,
     FunctionCallSSEData,
     LlmFunctionCall,
-    LlmFunctionCallResult,
+    LlmClientFunctionCallResult,
     RoleEnum,
 )
 from .prompts import SYSTEM_PROMPT
@@ -88,17 +88,15 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
     """Query the Copilot."""
 
     # Define LLM functions
-    def _llm_get_widget_data(widget_uuid: str) -> FunctionCallResponse:
-        """Retrieve data from a widget, only if it's UUID is listed in the context.
+    def _llm_get_widget_data(widget_uuids: list[str]) -> FunctionCallResponse:
+        """Retrieve data from widgets, only if their UUIDs are listed in the context.
 
         # Usage
         - This function can only be called if a valid widget UUID is present.
         - This function can NOT be called if a valid widget UUID is not present.
         """
-        print("Function call")
-        print(widget_uuid)
         return FunctionCallResponse(
-            function="get_widget_data", input_arguments={"widget_uuid": widget_uuid}
+            function="get_widget_data", input_arguments={"widget_uuids": widget_uuids}
         )
 
     # Prepare messages
@@ -123,10 +121,10 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
                 )
                 chat_messages.append(AssistantMessage(function_call))
         elif message.role == RoleEnum.tool:
-            if isinstance(message, LlmFunctionCallResult):
+            if isinstance(message, LlmClientFunctionCallResult):
                 chat_messages.append(
                     FunctionResultMessage(
-                        content=sanitize_message(message.content),
+                        content=sanitize_message(str(message.data)),
                         function_call=function_call,  # type: ignore
                     )
                 )
@@ -173,15 +171,4 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
     return EventSourceResponse(
         content=create_response_stream(response),
         media_type="text/event-stream",
-    )
-
-
-def llm_retrieve_widget_data(widget_uuid: str) -> FunctionCallResponse:
-    """Retrieve the data for a widget given a widget_uuid.
-
-    Only retrieve a widget if its UUID exists.
-    Do not retrieve a widget if its UUID does not exist.
-    """
-    return FunctionCallResponse(
-        function="get_widget_data", input_arguments={"widget_uuid": widget_uuid}
     )

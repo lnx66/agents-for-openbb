@@ -1,6 +1,6 @@
 from typing import Any, Literal
 from uuid import UUID
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, JsonValue, field_validator, model_validator
 from enum import Enum
 import json
 
@@ -11,13 +11,38 @@ class RoleEnum(str, Enum):
     tool = "tool"
 
 
-class LlmFunctionCallResult(BaseModel):
+class ChartParameters(BaseModel):
+    chartType: Literal["line", "bar", "scatter"]
+    xKey: str
+    yKey: list[str]
+
+
+class DataFormat(BaseModel):
+    """Describe the format of the data, and how it should be handled."""
+
+    type: Literal["text", "table", "chart"] | None = None
+    chart_params: ChartParameters | None = None
+
+
+class DataContent(BaseModel):
+    content: JsonValue = Field(
+        description="The data content, which must be JSON-serializable. Can be a primitive type (str, int, float, bool), list, or dict."  # noqa: E501
+    )
+    data_format: DataFormat | None = Field(
+        default=None,
+        description="Optional. How the data should be parsed. If not provided, a best-effort attempt will be made to automatically determine the data format.",  # noqa: E501
+    )
+
+
+class LlmClientFunctionCallResult(BaseModel):
+    """Contains the result of a function call made against a client."""
+
     role: RoleEnum = RoleEnum.tool
     function: str = Field(description="The name of the called function.")
     input_arguments: dict[str, Any] | None = Field(
         default=None, description="The input arguments passed to the function"
     )
-    content: str = Field(description="The result of the function call.")
+    data: list[DataContent] = Field(description="The content of the function call.")
 
 
 class LlmFunctionCall(BaseModel):
@@ -80,7 +105,7 @@ class Widget(BaseModel):
 
 
 class AgentQueryRequest(BaseModel):
-    messages: list[LlmFunctionCallResult | LlmMessage] = Field(
+    messages: list[LlmClientFunctionCallResult | LlmMessage] = Field(
         description="A list of messages to submit to the copilot."
     )
     context: str | list[RawContext] | None = Field(
@@ -131,3 +156,29 @@ class FunctionCallSSEData(BaseModel):
 class FunctionCallSSE(BaseSSE):
     event: Literal["copilotFunctionCall"] = "copilotFunctionCall"
     data: FunctionCallSSEData
+
+
+class StatusUpdateSSEData(BaseModel):
+    eventType: Literal["INFO", "WARNING", "ERROR"]
+    message: str
+    group: Literal["reasoning"] = "reasoning"
+    details: list[dict[str, str | int | float | None]] | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def exclude_fields(cls, values):
+        # Exclude these fields from being in the "details" field.  (since this
+        # pollutes the JSON output)
+        _exclude_fields = []
+
+        if details := values.get("details"):
+            for detail in details:
+                for key in list(detail.keys()):
+                    if key.lower() in _exclude_fields:
+                        detail.pop(key, None)
+        return values
+
+
+class StatusUpdateSSE(BaseSSE):
+    event: Literal["copilotStatusUpdate"] = "copilotStatusUpdate"
+    data: StatusUpdateSSEData
