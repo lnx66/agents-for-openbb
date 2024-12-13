@@ -3,6 +3,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field, JsonValue, field_validator, model_validator
 from enum import Enum
 import json
+import uuid
 
 
 class RoleEnum(str, Enum):
@@ -158,11 +159,31 @@ class FunctionCallSSE(BaseSSE):
     data: FunctionCallSSEData
 
 
+class ClientArtifact(BaseModel):
+    """A piece of output data that is returned to the client."""
+
+    type: Literal["text", "table", "chart"]
+    name: str
+    description: str
+    uuid: UUID = Field(default_factory=uuid.uuid4)
+    content: str | list[dict]
+    chart_params: ChartParameters | None = None
+
+    @model_validator(mode="after")
+    def check_chart_params(cls, values):
+        if values.type == "chart" and not values.chart_params:
+            raise ValueError("chart_params is required for type 'chart'")
+        if values.type != "chart" and values.chart_params:
+            raise ValueError("chart_params is only allowed for type 'chart'")
+        return values
+
+
 class StatusUpdateSSEData(BaseModel):
     eventType: Literal["INFO", "WARNING", "ERROR"]
     message: str
     group: Literal["reasoning"] = "reasoning"
     details: list[dict[str, str | int | float | None]] | None = None
+    artifacts: list[ClientArtifact] | None = None
 
     @model_validator(mode="before")
     @classmethod
