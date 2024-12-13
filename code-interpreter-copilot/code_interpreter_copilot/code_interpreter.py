@@ -32,6 +32,7 @@ class CapturingInteractiveConsole(InteractiveConsole):
 
 def repl_worker(input_queue: Queue, output_queue: Queue, local_context: dict[str, Any]):
     console = CapturingInteractiveConsole(locals=local_context)
+    # Load our utility functions that the LLM can use to return structured data
     console.runcode(
         "import numpy as np\n"
         "import pandas as pd\n"
@@ -62,6 +63,7 @@ def repl_worker(input_queue: Queue, output_queue: Queue, local_context: dict[str
         "    }\n"
         "    return '```json\\n' + json.dumps(chart_data) + '\\n```'\n"
     )
+    # Begin the REPL loop
     while True:
         code = input_queue.get()
         if code is None:

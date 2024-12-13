@@ -6,7 +6,6 @@ from typing import Any, AsyncGenerator
 import uuid
 import logging
 
-from pydantic import BaseModel
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -33,6 +32,7 @@ from common.models import (
 )
 from .prompts import SYSTEM_PROMPT
 from .code_interpreter import repl_worker
+from .models import HandledContext
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -63,22 +63,7 @@ def sanitize_message(message: str) -> str:
     return cleaned_message
 
 
-async def create_message_stream(
-    content: AsyncStreamedStr,
-) -> AsyncGenerator[dict, None]:
-    async for chunk in content:
-        yield {"event": "copilotMessageChunk", "data": json.dumps({"delta": chunk})}
-
-
-@app.get("/copilots.json")
-def get_copilot_description():
-    """Widgets configuration file for the OpenBB Terminal Pro"""
-    return JSONResponse(
-        content=json.load(open((Path(__file__).parent.resolve() / "copilots.json")))
-    )
-
-
-def handle_function_call(result: FunctionCall) -> ClientArtifact:
+def _handle_function_call(result: FunctionCall) -> ClientArtifact:
     logger.info(f"Running function call: {result}")
     output = result()
     if "```json" in output:
@@ -102,7 +87,7 @@ def handle_function_call(result: FunctionCall) -> ClientArtifact:
                     yKey=[output["chart_params"]["yKey"]],
                 ),
             )
-
+    # If we don't have a table or chart, just return the text
     return ClientArtifact(
         type="text",
         name=f"text_artifact_{uuid.uuid4()}",
@@ -111,12 +96,14 @@ def handle_function_call(result: FunctionCall) -> ClientArtifact:
     )
 
 
-class HandledContext(BaseModel):
-    context_prompt_str: str
-    loaded_context: dict[str, Any]
+async def _create_message_stream(
+    content: AsyncStreamedStr,
+) -> AsyncGenerator[dict, None]:
+    async for chunk in content:
+        yield {"event": "copilotMessageChunk", "data": json.dumps({"delta": chunk})}
 
 
-def handle_context(context: str | list[RawContext]) -> HandledContext:
+def _prepare_context(context: str | list[RawContext]) -> HandledContext:
     loaded_context = {}
     context_prompt_str = ""
     if isinstance(context, list):
@@ -160,9 +147,9 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
             chat_messages.append(UserMessage(content=sanitize_message(message.content)))
 
     if request.context:
-        handled_context = handle_context(request.context)
+        handled_context = _prepare_context(request.context)
 
-    def llm_run_code(code: str) -> str:
+    def _llm_run_code(code: str) -> str:
         """Use this tool to run Python code and get the output.
 
         To return structured data (eg. a numpy array or dataframe) as a table for
@@ -190,16 +177,19 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
             count += 1
 
             @chatprompt(
-                SystemMessage(SYSTEM_PROMPT), *chat_messages, functions=[llm_run_code]
+                SystemMessage(SYSTEM_PROMPT), *chat_messages, functions=[_llm_run_code]
             )
-            async def _llm(context: str) -> AsyncStreamedStr | FunctionCall: ...
+            async def do_completion(
+                context: str,
+            ) -> AsyncStreamedStr | FunctionCall: ...
 
             # Run the LLM
             logger.info("Running LLM...")
-            result = await _llm(context=handled_context.context_prompt_str)
+            result = await do_completion(context=handled_context.context_prompt_str)
 
-            # Handle the response
+            # If the completion is a function call, we need to handle it.
             if isinstance(result, FunctionCall):
+                # Yield a status update to the client.
                 yield StatusUpdateSSE(
                     data=StatusUpdateSSEData(
                         eventType="INFO",
@@ -208,7 +198,11 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
                         artifacts=None,
                     )
                 ).model_dump()
-                artifact = handle_function_call(result)
+
+                # Execute the function call and handle the result
+                artifact = _handle_function_call(result)
+
+                # Yield another status update to the client.
                 yield StatusUpdateSSE(
                     data=StatusUpdateSSEData(
                         eventType="INFO",
@@ -217,18 +211,27 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
                     )
                 ).model_dump()
 
-                # Add the function call to the chat messages
+                # Append the function call and result to the chat messages
                 chat_messages.append(AssistantMessage(result))
-                # Add the function result to the chat messages
                 chat_messages.append(
                     FunctionResultMessage(
                         content=artifact.content,
                         function_call=result,
                     )
                 )
+
+            # If the completion is a streamed message, we need to stream it to the client.
             elif isinstance(result, AsyncStreamedStr):
-                async for event in create_message_stream(result):
+                async for event in _create_message_stream(result):
                     yield event
                 break
 
     return EventSourceResponse(execution_loop())
+
+
+@app.get("/copilots.json")
+def get_copilot_description():
+    """Widgets configuration file for the OpenBB Terminal Pro"""
+    return JSONResponse(
+        content=json.load(open((Path(__file__).parent.resolve() / "copilots.json")))
+    )
