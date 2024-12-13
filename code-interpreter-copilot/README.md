@@ -1,11 +1,19 @@
 # Code Interpreter Copilot
-This example provides a basic copilot that only does question and answering,
-using a custom System prompt.
+This example provides an example of an advanced copilot that can use a code
+interpreter to answer questions.
+
+The code interpreter is implemented entirely using the standard Python library,
+and does not require any additional dependencies or external services.
+
+**WARNING:** This copilot will execute the generated code locally on your machine.
+This can be dangerous if you are not careful. You should treat all code generated
+by an LLM as untrusted.
 
 ## Overview
 This implementation utilizes a FastAPI application to serve as the backend for
 the copilot. The core functionality is powered by `magentic`, a robust, minimal
 framework for working with Large Language Models (LLMs).
+
 
 You're not limited to our setup! If you have preferences for different APIs or
 LLM frameworks, feel free to adapt this implementation. The key is to adhere to

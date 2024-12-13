@@ -224,6 +224,7 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
             elif isinstance(result, AsyncStreamedStr):
                 async for event in _create_message_stream(result):
                     yield event
+                logger.info("LLM run complete!")
                 break
 
     return EventSourceResponse(execution_loop())
