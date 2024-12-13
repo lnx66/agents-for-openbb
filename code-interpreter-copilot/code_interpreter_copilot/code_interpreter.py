@@ -13,20 +13,15 @@ class CapturingInteractiveConsole(InteractiveConsole):
 
     def runcode(self, code):
         old_stdout = sys.stdout
-        old_displayhook = sys.displayhook
+        old_stderr = sys.stderr
         sys.stdout = self.output_buffer
-
-        def custom_displayhook(value):
-            if value is not None:
-                print(repr(value))
-
-        sys.displayhook = custom_displayhook
+        sys.stderr = self.output_buffer
 
         try:
             super().runcode(code)
         finally:
             sys.stdout = old_stdout
-            sys.displayhook = old_displayhook
+            sys.stderr = old_stderr
 
     def get_output(self):
         val = self.output_buffer.getvalue()
