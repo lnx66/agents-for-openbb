@@ -197,7 +197,7 @@ def do_completion(
         elif response.choices[0].message.tool_calls:
             # For now, we'll only handle a single tool call at a time.
             tool_call = response.choices[0].message.tool_calls[0]
-            arguments = tool_call.function.arguments
+            arguments = json.loads(tool_call.function.arguments)
             function_call = FunctionCall(
                 function=next(
                     f for f in functions if f.__name__ == tool_call.function.name
