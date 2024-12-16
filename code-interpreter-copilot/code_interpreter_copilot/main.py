@@ -133,16 +133,15 @@ def _prepare_context(context: str | list[RawContext]) -> HandledContext:
                 context_prompt_str += f"Description: {context_item.description}\n"
                 context_prompt_str += f"Metadata: {context_item.metadata}\n"
                 context_prompt_str += f"Content: {context_item.data.content}\n"
-                logger.warning(f"Failed to load context item, treating as unstructured.")
-
+                logger.warning(
+                    "Failed to load context item, treating as unstructured."
+                )
 
         return HandledContext(
             context_prompt_str=context_prompt_str, loaded_context=loaded_context
         )
     else:
-        return HandledContext(
-            context_prompt_str=context, loaded_context={}
-        )
+        return HandledContext(context_prompt_str=context, loaded_context={})
 
 
 @app.post("/v1/query")

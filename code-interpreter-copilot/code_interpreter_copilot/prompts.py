@@ -40,4 +40,3 @@ Use the following context to help formulate your answer:
 {context}
 
 """
-
