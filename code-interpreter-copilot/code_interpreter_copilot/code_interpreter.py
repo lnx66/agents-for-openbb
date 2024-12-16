@@ -1,4 +1,3 @@
-# worker.py
 import sys
 import io
 from code import InteractiveConsole

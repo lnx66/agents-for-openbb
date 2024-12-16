@@ -108,29 +108,41 @@ def _prepare_context(context: str | list[RawContext]) -> HandledContext:
     context_prompt_str = ""
     if isinstance(context, list):
         for context_item in context:
-            df = pd.DataFrame(json.loads(context_item.data.content))
-            clean_name = "df_" + context_item.name.replace(" ", "_").replace(
-                "-", "_"
-            ).replace(".", "_")
-            clean_name += (
-                f"_{context_item.metadata.get('symbol')}"
-                if context_item.metadata and context_item.metadata.get("symbol")
-                else ""
-            )
-            clean_name = clean_name.lower()
-            loaded_context[clean_name] = df
+            try:
+                df = pd.DataFrame(json.loads(context_item.data.content))
+                clean_name = "df_" + context_item.name.replace(" ", "_").replace(
+                    "-", "_"
+                ).replace(".", "_")
+                clean_name += (
+                    f"_{context_item.metadata.get('symbol')}"
+                    if context_item.metadata and context_item.metadata.get("symbol")
+                    else ""
+                )
+                clean_name = clean_name.lower()
+                loaded_context[clean_name] = df
+                context_prompt_str += f"## {context_item.name}\n"
+                context_prompt_str += f"Available as a pandas dataframe via the variable `{clean_name}` in the code interpreter.\n"
+                context_prompt_str += f"Description: {context_item.description}\n"
+                context_prompt_str += f"Metadata: {context_item.metadata}\n"
+                context_prompt_str += f"Preview:\n{df.head().to_json(orient='records', lines=True, date_format='iso')}\n"
+                context_prompt_str += "---"
+                context_prompt_str += "\n\n"
 
-            context_prompt_str += f"## {context_item.name}\n"
-            context_prompt_str += f"Available as a pandas dataframe via the variable `{clean_name}` in the code interpreter.\n"
-            context_prompt_str += f"Description: {context_item.description}\n"
-            context_prompt_str += f"Metadata: {context_item.metadata}\n"
-            context_prompt_str += f"Preview:\n{df.head().to_json(orient='records', lines=True, date_format='iso')}\n"
-            context_prompt_str += "---"
-            context_prompt_str += "\n\n"
+            except ValueError:
+                context_prompt_str += f"## {context_item.name}\n"
+                context_prompt_str += f"Description: {context_item.description}\n"
+                context_prompt_str += f"Metadata: {context_item.metadata}\n"
+                context_prompt_str += f"Content: {context_item.data.content}\n"
+                logger.warning(f"Failed to load context item, treating as unstructured.")
 
-    return HandledContext(
-        context_prompt_str=context_prompt_str, loaded_context=loaded_context
-    )
+
+        return HandledContext(
+            context_prompt_str=context_prompt_str, loaded_context=loaded_context
+        )
+    else:
+        return HandledContext(
+            context_prompt_str=context, loaded_context={}
+        )
 
 
 @app.post("/v1/query")
@@ -146,8 +158,7 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
         elif message.role == "human":
             chat_messages.append(UserMessage(content=sanitize_message(message.content)))
 
-    if request.context:
-        handled_context = _prepare_context(request.context)
+    handled_context = _prepare_context(request.context)
 
     def _llm_run_code(code: str) -> str:
         """Use this tool to run Python code and get the output.
