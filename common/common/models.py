@@ -51,31 +51,6 @@ class LlmFunctionCall(BaseModel):
     input_arguments: dict[str, Any]
 
 
-class LlmMessage(BaseModel):
-    role: RoleEnum = Field(
-        description="The role of the entity that is creating the message"
-    )
-    content: LlmFunctionCall | str = Field(
-        description="The content of the message or the result of a function call."
-    )
-
-    @field_validator("content", mode="before")
-    def parse_content(cls, v):
-        # We do this to make sure, if the client appends the function call to
-        # the messages that we're able to parse it correctly since the client
-        # will send the LlmFunctionCall encoded as a string, rather than JSON.
-        if isinstance(v, str):
-            try:
-                parsed_content = json.loads(v)
-                if isinstance(parsed_content, str):
-                    # Sometimes we need a second decode if the content is
-                    # escaped and string-encoded
-                    parsed_content = json.loads(parsed_content)
-                return LlmFunctionCall(**parsed_content)
-            except (json.JSONDecodeError, TypeError, ValueError):
-                return v
-
-
 class DataContent(BaseModel):
     content: Any = Field(description="The data content of the widget")
 
@@ -93,30 +68,97 @@ class RawContext(BaseModel):
     )
 
 
-class Widget(BaseModel):
-    uuid: str = Field(description="The UUID of the widget.")
-    name: str = Field(description="The name of the widget.")
-    description: str = Field(
-        description="A description of the data contained in the widget"
+class Undefined:
+    pass
+
+
+class WidgetParam(BaseModel):
+    name: str = Field(description="Name of the parameter.")
+    type: str = Field(description="Type of the parameter.")
+    description: str = Field(description="Description of the parameter.")
+    default_value: Any | None = Field(
+        default=None, description="Default value of the parameter."
     )
-    metadata: dict[Any, Any] | None = Field(
+    current_value: Any | None = Field(
         default=None,
-        description="Additional widget metadata (eg. the selected ticker, etc)",
+        description="Current value of the parameter. Must not be set for 'extra' widgets.",  # noqa: E501
+    )
+    options: list[Any] | None = Field(
+        default=None, description="Optional list of values for enumerations."
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_default_value(cls, data: dict):
+        # We want to distinguish between a missing default value and an
+        # explicitly set default value of None.  There is a difference between
+        # my_function(param=None) and my_function(param).
+        if "default_value" not in data:
+            data["default_value"] = Undefined
+        return data
+
+
+class Widget(BaseModel):
+    uuid: UUID = Field(
+        description="UUID of the widget. Used by Copilot to identify widgets. Only used internally.",  # noqa: E501
+        default_factory=uuid.uuid4,
+    )
+    origin: str = Field(description="Origin of the widget.")
+    widget_id: str = Field(description="Endpoint ID of the widget.")
+    name: str = Field(description="Name of the widget.")
+    description: str = Field(description="Description of the widget.")
+    params: list[WidgetParam] = Field(description="List of parameters for the widget.")
+    metadata: dict[str, Any] = Field(
+        description="Metadata for the widget, must not overlap with current_params."
+    )
+
+
+class LlmClientMessage(BaseModel):
+    role: RoleEnum = Field(
+        description="The role of the entity that is creating the message"
+    )
+    content: str | LlmFunctionCall = Field(
+        description="The content of the message or the result of a function call."
+    )
+
+    @field_validator("content", mode="before", check_fields=False)
+    def parse_content(cls, v):
+        if isinstance(v, str):
+            try:
+                parsed_content = json.loads(v)
+                if isinstance(parsed_content, str):
+                    # Sometimes we need a second decode if the content is
+                    # escaped and string-encoded
+                    parsed_content = json.loads(parsed_content)
+                return LlmFunctionCall(**parsed_content)
+            except (json.JSONDecodeError, TypeError, ValueError):
+                return v
+        return v
+
+
+class WidgetCollection(BaseModel):
+    primary: list[Widget] = Field(
+        default_factory=list, description="Explicitly-added widgets with top priority."
+    )
+    secondary: list[Widget] = Field(
+        default_factory=list,
+        description="Dashboard widgets with second-highest priority.",
+    )
+    extra: list[Widget] = Field(
+        default_factory=list, description="Extra data sources or custom backends."
     )
 
 
 class AgentQueryRequest(BaseModel):
-    messages: list[LlmClientFunctionCallResult | LlmMessage] = Field(
+    messages: list[LlmClientFunctionCallResult | LlmClientMessage] = Field(
         description="A list of messages to submit to the copilot."
     )
-    context: str | list[RawContext] | None = Field(
+    context: list[RawContext] | None = Field(
         default=None, description="Additional context."
     )
-    use_docs: bool = Field(
-        default=None, description="Set True to use uploaded docs when answering query."
-    )
-    widgets: list[Widget] = Field(
-        default=None, description="A list of widgets for the copilot to consider."
+    widgets: WidgetCollection | None = Field(
+        default=None,
+        description="A dictionary containing primary, secondary, and extra widgets.",
     )
 
     @field_validator("messages")
@@ -127,10 +169,23 @@ class AgentQueryRequest(BaseModel):
         return value
 
 
+class DataSourceRequest(BaseModel):
+    origin: str
+    id: str
+    input_args: dict[str, Any]
+
+
 class FunctionCallResponse(BaseModel):
     function: str = Field(description="The name of the function to call.")
     input_arguments: dict | None = Field(
         default=None, description="The input arguments to the function."
+    )
+    copilot_function_call_arguments: dict | None = Field(
+        default=None, description="The original arguments of the function call."
+    )
+    extra_state: dict | None = Field(
+        default=None,
+        description="Extra state to be passed between the client and this service.",
     )
 
 

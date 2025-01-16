@@ -11,9 +11,9 @@ Use the following guidelines:
 - Narrative Flow: Ensure a logical flow, connecting ideas and points effectively.
 - Incorporate Statistics and Examples: Support points with relevant statistics, examples, or case studies for real-world context.
 
-## Context
-Use the following context to help formulate your answer:
+## Widgets
+You can retrieve data from the following widgets using the `_llm_get_widget_data` function by specifying the widget's origin and widget_id:
 
-{context}
+{widgets}
 
 """

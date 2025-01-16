@@ -5,12 +5,80 @@
             "content": "What's the stock price of TSLA?"
         }
     ],
-    "widgets": [
-        {
-            "uuid": "91ae1153-7b4d-451c-adc5-49856e90a0e6",
-            "name": "Stock Price", 
-            "description": "Get the stock price of a company.",
-            "metadata": {"symbol": "TSLA"}
-        }
-    ]
+    "widgets": {
+        "primary": [
+            {
+                "uuid": "91ae1153-7b4d-451c-adc5-49856e90a0e6",
+                "origin": "OpenBB API",
+                "widget_id": "stock_price",
+                "name": "Stock Price",
+                "description": "Get real-time stock price data for any ticker",
+                "params": [
+                    {
+                        "name": "symbol",
+                        "type": "string",
+                        "description": "Stock ticker symbol",
+                        "current_value": "TSLA"
+                    }
+                ],
+                "metadata": {}
+            }
+        ],
+        "secondary": [
+            {
+                "uuid": "b2c45d67-8e9f-4a12-bc3d-123456789abc",
+                "origin": "OpenBB API",
+                "widget_id": "company_news",
+                "name": "Company News", 
+                "description": "Get latest news articles about a company",
+                "params": [
+                    {
+                        "name": "symbol",
+                        "type": "string",
+                        "description": "Stock ticker symbol",
+                        "current_value": "TSLA"
+                    },
+                    {
+                        "name": "start_date",
+                        "type": "string",
+                        "description": "Start date for news articles (YYYY-MM-DD)",
+                        "current_value": "2024-01-01"
+                    }
+                ],
+                "metadata": {}
+            }
+        ],
+        "extra": [
+            {
+                "uuid": "f7d23e89-1a2b-4c3d-9e8f-567890abcdef",
+                "origin": "OpenBB API",
+                "widget_id": "historical_price",
+                "name": "Historical Stock Price",
+                "description": "Get historical stock price data with customizable date range",
+                "params": [
+                    {
+                        "name": "symbol",
+                        "type": "string",
+                        "description": "Stock ticker symbol",
+                        "default_value": "AAPL"
+                    },
+                    {
+                        "name": "start_date",
+                        "type": "string",
+                        "description": "Start date for historical data (YYYY-MM-DD)",
+                        "default_value": "2024-01-01"
+                    },
+                    {
+                        "name": "end_date",
+                        "type": "string",
+                        "description": "End date for historical data (YYYY-MM-DD)",
+                        "default_value": "2024-12-31"
+                    }
+                ],
+                "metadata": {
+                    "source": "market_data"
+                }
+            }
+        ]
+    }
 }

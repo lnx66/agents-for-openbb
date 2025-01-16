@@ -102,6 +102,10 @@ class CopilotResponse:
         assert any(
             event_type == event.event_type and content_contains in str(event.content)
             for event in self.events
+        ), (
+            f"Event type {event_type} with content {content_contains} not found in events.\n"
+            f"Events found:\n"
+            + "\n".join(f"{e.event_type}: {e.content}" for e in self.events)
         )
         return self
 
