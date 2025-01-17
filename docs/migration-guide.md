@@ -95,13 +95,13 @@ Previously, widgets on the currently-active dashboard were passed in as a single
                     },
                     {
                         "name": "start_date",
-                        "type": "string",
+                        "type": "date",
                         "description": "Start date for historical data (YYYY-MM-DD)",
                         "default_value": "2024-01-01"
                     },
                     {
                         "name": "end_date", 
-                        "type": "string",
+                        "type": "date",
                         "description": "End date for historical data (YYYY-MM-DD)",
                         "default_value": "2024-12-31"
                     }
