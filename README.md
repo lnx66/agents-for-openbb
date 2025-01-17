@@ -94,8 +94,8 @@ The core of the query request schema you must implement is as follows:
         "widget_id": "<widget_id>",
         "name": "<widget name>",
         "description": "<widget description>",
-        "params": [],
-        "metadata": {}
+        "params": [],  # <-- same schema as primary params  
+        "metadata": {} # <-- same schema as primary params  
       },
       ...
     ],
@@ -110,7 +110,7 @@ The core of the query request schema you must implement is as follows:
             "name": "<parameter_name>",
             "type": "<parameter_type>", 
             "description": "<parameter description>",
-            "default_value": "<default value>"  # <-- default instead of current for extra widgets
+            "default_value": "<default value>"
           },
           ...
         ],
@@ -197,7 +197,7 @@ widgets in the currently-active dashboard (`secondary`), or widgets that are glo
   "widgets": {
     "primary": [
       {
-        "origin": "openbb_api",
+        "origin": "OpenBB API",
         "widget_id": "stock_price_quote",
         "name": "Stock Price Quote Widget",
         "description": "Contains the current stock price of a ticker",
@@ -217,7 +217,7 @@ widgets in the currently-active dashboard (`secondary`), or widgets that are glo
     ],
     "secondary": [
       {
-        "origin": "openbb_api",
+        "origin": "OpenBB API",
         "widget_id": "financial_ratios",
         "name": "Financial Ratios Widget",
         "description": "Displays key financial ratios for a company",
@@ -238,8 +238,8 @@ widgets in the currently-active dashboard (`secondary`), or widgets that are glo
           }
         ],
         "metadata": {
-          "ticker": "AAPL",
-          "period": "TTM"
+          "lastUpdated": 1737111708292,  
+          "source": "Financial Modelling Prep"  
         }
       }
     ],
@@ -268,7 +268,8 @@ The `context` field works as follows:
         "content": "<data>"  # <-- the data of the context could either be a JSON string or plaintext (you must choose how to handle this in your copilot)
       },
       "metadata": {  # <-- additional metadata about the context
-        "symbol": "AAPL"
+          "lastUpdated": 1737111708292,  
+          "source": "Financial Modelling Prep"  
       }
     },
     {
@@ -543,7 +544,7 @@ The OpenBB app will then execute the specified function, and make a new query re
   "widgets": {
     "primary": [
       {
-        "origin": "openbb_api",
+        "origin": "OpenBB API",
         "widget_id": "historical_stock_price",
         "name": "Historical Stock Price",
         "description": "Historical Stock Price",
@@ -557,9 +558,8 @@ The OpenBB app will then execute the specified function, and make a new query re
           }
         ],
         "metadata": {
-          "symbol": "AAPL",
-          "source": "Financial Modelling Prep",
-          "lastUpdated": 1728994470324
+          "lastUpdated": 1728994470324,
+          "source": "Financial Modelling Prep"
         }
       }
     ],
