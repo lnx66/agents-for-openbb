@@ -1,6 +1,5 @@
 # Basic example copilot
-This example provides a basic copilot that only does question and answering,
-using a custom System prompt.
+This example provides a basic copilot that does question and answering, and can retrieve widget data from the OpenBB workspace.
 
 ## Overview
 This implementation utilizes a FastAPI application to serve as the backend for

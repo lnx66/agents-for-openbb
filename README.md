@@ -26,6 +26,10 @@ Your custom copilot API will respond with Server-Sent Events
 quickly, we suggest running one of the example copilots included as part of
 this repository, and adding it as a custom copilot to the OpenBB app (each example copilot includes instructions on how to run them). Cloning and modifying an example copilot is a great way to build a custom copilot.**
 
+## Migration guide
+
+- **2025-01-16**: The custom copilot protocol has changed. To migrate your custom copilot to the new protocol, see the [migration guide](./docs/migration-guide.md).
+
 ## The Copilot protocol is stateless
 
 The most important concept to understand is that the copilot protocol is
@@ -57,35 +61,79 @@ The core of the query request schema you must implement is as follows:
     {
       "role": "human",  # <-- each message has a role: "human", "ai", or "tool"
       "content": "Hi there."  # <-- the content of the message
-    }
+    },
+    ...
   ],
-  "context": [  # <-- explicitly added context by the user (optional)
+  "widgets": {  # <-- an object with primary, secondary, and optional extra lists
+    "primary": [  # <-- explicitly added widgets (highest priority)
+      {
+        "origin": "<origin>", # <-- the origin of the widget (OpenBB API, custom backend name, etc.)
+        "widget_id": "<widget_id>", # <-- the ID of the widget  (eg. "stock_price_quote")
+        "name": "<widget name>", # <-- the name of the widget (eg. "Stock Price Quote")
+        "description": "<widget description>", # <-- the description of the widget
+        "params": [  # <-- parameters for the widget
+          {
+            "name": "<parameter_name>", # <-- parameter name
+            "type": "<parameter_type>", # <-- parameter type (string, number, etc.)
+            "description": "<parameter description>",  # <-- parameter description
+            "current_value": "<current value>", # <-- currently set value of the parameter on the widget
+            "default_value": "<default value>" # <-- default value of the parameter on the widget if it's not set
+          },
+          ...
+        ],
+        "metadata": {
+          "<metadata key>": "<metadata value>",
+          ...
+        }
+      },
+      ...
+    ],
+    "secondary": [  # <-- dashboard widgets (second priority)
+      {
+        "origin": "<origin>",
+        "widget_id": "<widget_id>",
+        "name": "<widget name>",
+        "description": "<widget description>",
+        "params": [],  # <-- same schema as primary params  
+        "metadata": {} # <-- same schema as primary params  
+      },
+      ...
+    ],
+    "extra": [  # <-- optional list of all other available widgets (only present of the global data toggle is enabled)
+      {
+        "origin": "<origin>",
+        "widget_id": "<widget_id>",
+        "name": "<widget name>",
+        "description": "<widget description>",
+        "params": [  # <-- `extra` widgets don't have current values, since the widgets are not currently visible on the dashboard
+          {
+            "name": "<parameter_name>",
+            "type": "<parameter_type>", 
+            "description": "<parameter description>",
+            "default_value": "<default value>"
+          },
+          ...
+        ],
+        "metadata": {}
+      },
+      ...
+    ]
+  },
+  "context": [  # <-- reserved for artifacts returned by the custom copilot (optional)
     {
-      "uuid": "3fa85f64-5717-4562-b3fc-2c963f66afa6",  # <-- the UUID of the widget
-      "name": "<widget name>",  # <-- the name of the widget
-      "description": "<widget description>",  # <-- the description of the widget
+      "uuid": "3fa85f64-5717-4562-b3fc-2c963f66afa6",  # <-- the UUID of the context
+      "name": "<context name>",  # <-- the name of the context
+      "description": "<context description>",  # <-- the description of the context
       "data": {
-        "content": "<data>"  # <-- the data of the widget
+        "content": "<data>"  # <-- the data of the context
       },
       "metadata": {
-        "<metadata key>": "<metadata value>",  # <-- the metadata of the widget
+        "<metadata key>": "<metadata value>",  # <-- the metadata of the context
         ...
       }
     },
     ...
-  ],
-  "widgets": [  # <-- the widgets currently visible on the active dashboard on the OpenBB app (optional)
-    {
-      "uuid": "3fa85f64-5717-4562-b3fc-2c963f66afa6",  # <-- the UUID of the widget
-      "name": "<widget name>",  # <-- the name of the widget
-      "description": "<widget description>",  # <-- the description of the widget
-      "metadata": {
-        "<metadata key>": "<metadata value>",  # <-- the metadata of the widget
-        ...
-      }
-    },
-    ...
-  ],
+  ]
 }
 ```
 
@@ -138,13 +186,73 @@ to the `messages` array of any follow-up request.
 
 Function calls to the OpenBB app (such as when retrieving widget data), as well as the results of those function calls (containing the widget data), are also included in the `messages` array. For information on function calling, see the "Function Calling" section below.
 
+#### `widgets`
+
+This is an object containing a collection of widgets that added explicitly by the user as context (`primary`),
+widgets in the currently-active dashboard (`secondary`), or widgets that are globally available if "global data" toggle is enabled (`extra`).
+
+```python
+{
+  ...
+  "widgets": {
+    "primary": [
+      {
+        "origin": "OpenBB API",
+        "widget_id": "stock_price_quote",
+        "name": "Stock Price Quote Widget",
+        "description": "Contains the current stock price of a ticker",
+        "params": [
+          {
+            "name": "ticker",
+            "type": "string",
+            "description": "Stock ticker symbol",
+            "current_value": "TSLA",
+            "default_value": "AAPL"
+          }
+        ],
+        "metadata": {
+          "ticker": "TSLA"
+        }
+      }
+    ],
+    "secondary": [
+      {
+        "origin": "OpenBB API",
+        "widget_id": "financial_ratios",
+        "name": "Financial Ratios Widget",
+        "description": "Displays key financial ratios for a company",
+        "params": [
+          {
+            "name": "ticker",
+            "type": "string",
+            "description": "Stock ticker symbol",
+            "current_value": "AAPL",
+            "default_value": "AAPL"
+          },
+          {
+            "name": "period",
+            "type": "string",
+            "description": "Time period for ratios",
+            "current_value": "TTM",
+            "default_value": "TTM"
+          }
+        ],
+        "metadata": {
+          "lastUpdated": 1737111708292,  
+          "source": "Financial Modelling Prep"  
+        }
+      }
+    ],
+    "extra": []
+  },
+  ...
+}
+```
+
 #### `context`
 
-This is an optional array of widget data that will be sent by the OpenBB app
-when widgets have been added as context explicitly by the user. This happens
-when the user clicks on the "Add as Context" button on a widget in the OpenBB app.
-
-<img src="https://github.com/user-attachments/assets/6c84dc5b-7615-4483-a956-67ac526d5800" alt="explicit_context" width="70%"/>
+This is an optional array of artifact data that will be sent by the OpenBB app
+when artifacts have been returned by your custom copilot. 
 
 The `context` field works as follows:
 
@@ -153,31 +261,26 @@ The `context` field works as follows:
   ...
   "context": [
     {
-      "uuid": "3fa85f64-5717-4562-b3fc-2c963f66afa6",  # <-- each widget has a UUID
-      "name": "Analyst Estimates",
-      "description": "Contains analyst estimates for a ticker",
+      "uuid": "3fa85f64-5717-4562-b3fc-2c963f66afa6",  # <-- each context has a UUID
+      "name": "chart_artifact_123a5",
+      "description": "A chart showing the stock price of AAPL over the last 30 days",
       "data": {
-        "content": "<data>"  # <-- the data of the widget could either be a JSON string or plaintext (you must choose how to handle this in your copilot)
+        "content": "<data>"  # <-- the data of the context could either be a JSON string or plaintext (you must choose how to handle this in your copilot)
       },
-      "metadata": {  # <-- additional metadata about the widget
-        "symbol": "AAPL",
-        "period": "quarter",
-        "source": "Financial Modelling Prep",
-        "lastUpdated": 1728998071322
+      "metadata": {  # <-- additional metadata about the context
+          "lastUpdated": 1737111708292,  
+          "source": "Financial Modelling Prep"  
       }
     },
     {
-      "uuid": "8b2e5f79-3a1d-4c9e-b6f8-1e7d2a9c0b3d",  # <-- the context can have multiple widgets
-      "name": "Earnings Transcripts",  
-      "description": "Contains earnings transcripts for a ticker",
+      "uuid": "8b2e5f79-3a1d-4c9e-b6f8-1e7d2a9c0b3d",  # <-- there can be multiple contexts
+      "name": "table_artifact_4534as",  
+      "description": "A table showing the management team of AAPL",
       "data": {
-        "content": "<data>"  # <-- the data of the widget
+        "content": "<data>"  # <-- the data of the context
       },
       "metadata": {
-        "symbol": "AAPL",
-        "period": "quarter",
-        "source": "Intrinio",
-        "lastUpdated": 1728998071322
+        ...
       }
     },
     ...
@@ -186,41 +289,6 @@ The `context` field works as follows:
 }
 ```
 
-#### `widgets`
-
-This is an array of widgets that are currently visible on the active dashboard
-on the OpenBB app.
-**This is only useful if you're planning on implementing function calling in
-*your custom copilot** (which is recommended, but not required), which
-allows it to request widget data from the user's currently-active dashboard on
-the OpenBB app.
-
-```python
-{
-  ...
-  "widgets": [
-    {
-      "uuid": "c276369e-e469-4689-b5fe-3f8c76f7c45a",
-      "name": "Stock Price Quote Widget",
-      "description": "Contains the current stock price of a ticker",
-      "metadata": {
-        "ticker": "AAPL"
-      }
-    },
-    {
-      "uuid": "9f8e7d6c-5b4a-3c2e-1d0f-9e8d7c6b5a4b",
-      "name": "Financial Ratios Widget",
-      "description": "Displays key financial ratios for a company",
-      "metadata": {
-        "ticker": "AAPL",
-        "period": "TTM"
-      }
-    },
-    ...
-  ],
-  ...
-}
-```
 
 ## Responding to the OpenBB app
 
@@ -289,37 +357,36 @@ A text artifact:
 }
 ```
 
-#### `copilotFunctionCall` (only required for function calling -- see below)
+#### `copilotFunctionCall` (required for retrieving widget data -- see below)
 The function call SSE has the following format:
 
 ```
 event: copilotFunctionCall
-data: {"function":"get_widget_data","input_arguments":{"widget_uuids":["c276369e-e469-4689-b5fe-3f8c76f7c45a"]}}
+data: {"function":"get_widget_data","input_arguments":{"data_sources":[{"origin":"OpenBB API","id":"company_news","input_args":{"symbol":"AAPL","channels":"All","start_date":"2021-01-16","end_date":"2025-01-16","topics":"","limit":50}}]},"copilot_function_call_arguments":{"data_sources":[{"origin":"OpenBB API","widget_id":"company_news"}]}}
 ```
 
 Again, the `data` field must be a JSON object. The `function` field is the name
 of the function to be called (currently only `get_widget_data` is supported),
 and the `input_arguments` field is a dictionary of arguments to be passed to the
 function. For the `get_widget_data` function, the only required argument is
-`widget_uuids`, which is a list of UUID of the widgets to retrieve data for (from one of
-the UUIDs in the `widgets` array of the request).
+`data_sources`, which is a list of objects specifying the origin, widget ID, and input arguments for each widget to retrieve data for.
 
 
 ## Function Calling
 
-By adding function calling to your copilot, it will be able to request data that
-is visible on a user's currently-active dashboard in the OpenBB app.
+Function calling makes it possible for your copilot to request data from widgets. 
 
-A list of all widgets currently visible on a user's dashboard is sent to your
-copilot in the `widgets` array of the request payload.
+A list of all available widgets is sent to your copilot in the `widgets` field
+of the request payload. They are categorized according to explicitly-added widgets (`primary`), widgets in the user's currently-active dashboard (`secondary`), and widgets that are globally available if the "global data" toggle is enabled (`extra`).
 
 To retrieve the data from a widget, your copilot should respond with a
-`copilotFunctionCall` event, specifying the widget UUID:
+`copilotFunctionCall` event, specifying the widget origin, widget ID, and input arguments:
 
 ```
 event: copilotFunctionCall
-data: {"function":"get_widget_data","input_arguments":{"widget_uuids":["c276369e-e469-4689-b5fe-3f8c76f7c45a"]}}
+data: {"function":"get_widget_data","input_arguments":{"data_sources":[{"origin":"OpenBB API","id":"company_news","input_args":{"symbol":"AAPL","channels":"All","start_date":"2021-01-16","end_date":"2025-01-16","topics":"","limit":50}}]},"copilot_function_call_arguments":{"data_sources":[{"origin":"OpenBB API","widget_id":"company_news"}]}}
 ```
+
 
 After emitting a `copilotFunctionCall` event, you must close the connection and wait for a new query request from the OpenBB app.
 
@@ -335,15 +402,40 @@ include the original function call, as well as the function call result in the
     ...
     {
       "role": "ai",
-      "content": "{\"function\":\"get_widget_data\",\"input_arguments\":{\"widget_uuids\":[\"c276369e-e469-4689-b5fe-3f8c76f7c45a\"]}}"
+      "content": "{\"function\":\"get_widget_data\",\"input_arguments\":{\"data_sources\":[{\"origin\":\"OpenBB API\",\"id\":\"company_news\",\"input_args\":{\"symbol\":\"AAPL\",\"channels\":\"All\",\"start_date\":\"2021-01-16\",\"end_date\":\"2025-01-16\",\"topics\":\"\",\"limit\":50}}]},\"copilot_function_call_arguments\":{\"data_sources\":[{\"origin\":\"OpenBB API\",\"widget_id\":\"company_news\"}]}}"
     },
     {
-      "role": "tool",
+      "role": "tool", 
       "function": "get_widget_data",
-      "data": [
+      "input_arguments": {
+        "data_sources": [
+          {
+            "origin": "OpenBB API",
+            "id": "company_news",
+            "input_args": {
+              "symbol": "AAPL",
+              "channels": "All", 
+              "start_date": "2021-01-16",
+              "end_date": "2025-01-16",
+              "topics": "",
+              "limit": 50
+            }
+          }
+        ]
+      },
+      "copilot_function_call_arguments": {
+        "data_sources": [
+          {
+            "origin": "OpenBB API",
+            "widget_id": "company_news"
+          }
+        ]
+      },
+      "data": [  # <-- the data field is a list of objects, each containing the data for a widget (in order) that was requested in the `data_sources` field of the `copilotFunctionCall` event.
         {
           "content": "<data>"
-        }
+        },
+        ...
       ]
     }
   ]
@@ -368,18 +460,32 @@ Your custom copilot receives the following request from the OpenBB app:
       "content": "What is the current stock price of AAPL?"
     }
   ],
-  "widgets": [
-    {
-      "uuid": "38181a68-9650-4940-84fb-a3f29c8869f3",
-      "name": "Historical Stock Price",
-      "description": "Historical Stock Price",
-      "metadata": {
-        "symbol": "AAPL",
-        "source": "Financial Modelling Prep",
-        "lastUpdated": 1728994470324
+  "widgets": {
+    "primary": [
+      {
+        "origin": "openbb_api",
+        "widget_id": "historical_stock_price",
+        "name": "Historical Stock Price",
+        "description": "Historical Stock Price",
+        "params": [
+          {
+            "name": "symbol",
+            "type": "string",
+            "description": "Stock ticker symbol",
+            "current_value": "AAPL",
+            "default_value": "AAPL"
+          }
+        ],
+        "metadata": {
+          "symbol": "AAPL",
+          "source": "Financial Modelling Prep",
+          "lastUpdated": 1728994470324
+        }
       }
-    }
-  ]
+    ],
+    "secondary": [],
+    "extra": []
+  }
 }
 ```
 
@@ -390,7 +496,7 @@ Your copilot then responds with the following SSE and close the connection:
 
 ```
 event: copilotFunctionCall
-data: {"function":"get_widget_data","input_arguments":{"widget_uuids":["38181a68-9650-4940-84fb-a3f29c8869f3"]}}
+data: {"function":"get_widget_data","input_arguments":{"data_sources":[{"origin":"openbb_api","id":"historical_stock_price","input_args":{"symbol":"AAPL"}}]},"copilot_function_call_arguments":{"data_sources":[{"origin":"openbb_api","widget_id":"historical_stock_price"}]}}
 ```
 
 The OpenBB app will then execute the specified function, and make a new query request to your custom copilot:
@@ -404,28 +510,62 @@ The OpenBB app will then execute the specified function, and make a new query re
     },
     {
       "role": "ai",
-      "content": "{\"function\":\"get_widget_data\",\"input_arguments\":{\"widget_uuids\":[\"38181a68-9650-4940-84fb-a3f29c8869f3\"]}}"  
+      "content": "{\"function\":\"get_widget_data\",\"input_arguments\":{\"data_sources\":[{\"origin\":\"openbb_api\",\"id\":\"historical_stock_price\",\"input_args\":{\"symbol\":\"AAPL\"}}]},\"copilot_function_call_arguments\":{\"data_sources\":[{\"origin\":\"openbb_api\",\"widget_id\":\"historical_stock_price\"}]}}"
     },
     {
       "role": "tool",
       "function": "get_widget_data",
+      "input_arguments": {
+        "data_sources": [
+          {
+            "origin": "openbb_api",
+            "id": "historical_stock_price",
+            "input_args": {
+              "symbol": "AAPL"
+            }
+          }
+        ]
+      },
+      "copilot_function_call_arguments": {
+        "data_sources": [
+          {
+            "origin": "openbb_api",
+            "widget_id": "historical_stock_price"
+          }
+        ]
+      },
       "data": [
         {
           "content": "[{\"date\":\"2024-10-15T00:00:00-04:00\",\"open\":233.61,\"high\":237.49,\"low\":232.37,\"close\":233.85,\"volume\":61901688,\"vwap\":234.33,\"adj_close\":233.85,\"change\":0.24,\"change_percent\":0.0010274},{\"date\":\"2024-10-14T00:00:00-04:00\",\"open\":228.7,\"high\":231.73,\"low\":228.6,\"close\":231.3,\"volume\":39882100,\"vwap\":230.0825,\"adj_close\":231.3,\"change\":2.6,\"change_percent\":0.0114},{\"date\":\"2024-10-11T00:00:00-04:00\",\"open\":229.3,\"high\":233.2,\"low\":228.9,\"close\":231.0,\"volume\":32581944,\"vwap\":231.0333,\"adj_close\":231.0,\"change\":1.7,\"change_percent\":0.0074}, ... ]"
         }
-    } 
-  ],
-  "widgets": [
-    {
-      "uuid": "38181a68-9650-4940-84fb-a3f29c8869f3",
-      "name": "Historical Stock Price",
-      "description": "Historical Stock Price",
-      "metadata": {
-        "symbol": "AAPL",
-        "source": "Financial Modelling Prep",
-        "lastUpdated": 1728994470324
-      }
+      ]
     }
+  ],
+  "widgets": {
+    "primary": [
+      {
+        "origin": "OpenBB API",
+        "widget_id": "historical_stock_price",
+        "name": "Historical Stock Price",
+        "description": "Historical Stock Price",
+        "params": [
+          {
+            "name": "symbol",
+            "type": "string", 
+            "description": "Stock ticker symbol",
+            "current_value": "AAPL",
+            "default_value": "AAPL"
+          }
+        ],
+        "metadata": {
+          "lastUpdated": 1728994470324,
+          "source": "Financial Modelling Prep"
+        }
+      }
+    ],
+    "secondary": [],
+    "extra": []
+  }
 }
 ```
 

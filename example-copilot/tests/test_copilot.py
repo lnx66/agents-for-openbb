@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 from example_copilot.main import app
 import pytest
 from pathlib import Path
-from common.testing import capture_stream_response
+from common.testing import CopilotResponse, capture_stream_response
 
 test_client = TestClient(app)
 
@@ -46,18 +46,51 @@ def test_query_conversation():
     assert "4" in captured_stream
 
 
-def test_query_with_context():
+def test_query_handle_function_call():
     test_payload_path = (
         Path(__file__).parent.parent.parent
         / "test_payloads"
-        / "message_with_context.json"
+        / "retrieve_widget_from_dashboard.json"
     )
     test_payload = json.load(open(test_payload_path))
     response = test_client.post("/v1/query", json=test_payload)
-    event_name, captured_stream = capture_stream_response(response.text)
     assert response.status_code == 200
-    assert event_name == "copilotMessageChunk"
-    assert "pizza" in captured_stream.lower()
+    (
+        CopilotResponse(response.text)
+        .starts_with(
+            event_type="copilotFunctionCall", content_contains="get_widget_data"
+        )
+        .and_(content_contains="input_arguments")
+        .and_(content_contains="OpenBB API")
+        .and_(content_contains="stock_price")
+        .and_(content_contains="TSLA")
+        .and_(content_contains="copilot_function_call_arguments")
+    )
+
+
+def test_query_handle_function_call_result():
+    test_payload_path = (
+        Path(__file__).parent.parent.parent
+        / "test_payloads"
+        / "retrieve_widget_from_dashboard_with_result.json"
+    )
+    test_payload = json.load(open(test_payload_path))
+    response = test_client.post("/v1/query", json=test_payload)
+    assert response.status_code == 200
+    (
+        CopilotResponse(response.text)
+        .has_any(event_type="copilotMessage", content_contains="0.0444")  # month_1
+        .has_any(event_type="copilotMessage", content_contains="0.0435")  # month_3
+        .has_any(event_type="copilotMessage", content_contains="0.0424")  # month_6
+        .has_any(event_type="copilotMessage", content_contains="0.0416")  # year_1
+        .has_any(event_type="copilotMessage", content_contains="0.0427")  # year_2
+        .has_any(event_type="copilotMessage", content_contains="0.0431")  # year_3
+        .has_any(event_type="copilotMessage", content_contains="0.0446")  # year_5
+        .has_any(event_type="copilotMessage", content_contains="0.0457")  # year_7
+        .has_any(event_type="copilotMessage", content_contains="0.0468")  # year_10
+        .has_any(event_type="copilotMessage", content_contains="0.0498")  # year_20
+        .has_any(event_type="copilotMessage", content_contains="0.0492")  # year_30
+    )
 
 
 def test_query_no_messages():

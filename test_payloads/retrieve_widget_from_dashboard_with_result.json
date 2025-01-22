@@ -1,33 +1,150 @@
 {
-    "widgets": [
+    "widgets": {
+      "primary": [
         {
-            "uuid": "91ae1153-7b4d-451c-adc5-49856e90a0e6",
-            "name": "Yield Curve", 
-            "description": "Get yield curve data by country and date.",
-            "metadata": {"source": "EconDB", "lastUpdated": 1732178181043}
-        }
-    ],
-    "custom_direct_retrieval_endpoints": [],
-    "messages": [
-        {
-            "role": "human",
-            "content": "what can you tell me about the yield curve data? Give me % values with 2 decimal places."
-        },
-        {
-            "role": "ai",
-            "content": "{\"function\":\"get_widget_data\",\"input_arguments\":{\"widget_uuids\":[\"91ae1153-7b4d-451c-adc5-49856e90a0e6\"]},\"copilot_function_call_arguments\":{\"widget_uuids\":[\"91ae1153-7b4d-451c-adc5-49856e90a0e6\"]}}"
-        },
-        {
-            "role": "tool",
-            "function": "get_widget_data",
-            "input_arguments": {
-                "widget_uuids": ["91ae1153-7b4d-451c-adc5-49856e90a0e6"]
+          "origin": "OpenBB API",
+          "widget_id": "yield_curve",
+          "uuid": "062ece82-ad64-4e24-9e26-190738174cca",
+          "name": "Yield Curve",
+          "description": "Sovereign debt yield curve data by country and date.",
+          "params": [
+            {
+              "name": "country",
+              "type": "text",
+              "description": "Country to fetch rate.",
+              "default_value": "united_states",
+              "current_value": "united_states",
+              "options": [
+                "australia",
+                "canada",
+                "china",
+                "hong_kong",
+                "india",
+                "japan",
+                "mexico",
+                "new_zealand",
+                "russia",
+                "saudi_arabia",
+                "singapore",
+                "south_africa",
+                "south_korea",
+                "taiwan",
+                "thailand",
+                "united_kingdom",
+                "united_states"
+              ]
             },
-            "data": [
-                {
-                    "content": "[{\"date\":\"2024-11-13\",\"maturity\":\"month_1\",\"rate\":0.046900000000000004},{\"date\":\"2024-11-13\",\"maturity\":\"month_3\",\"rate\":0.046},{\"date\":\"2024-11-13\",\"maturity\":\"month_6\",\"rate\":0.044000000000000004},{\"date\":\"2024-11-13\",\"maturity\":\"year_1\",\"rate\":0.0431},{\"date\":\"2024-11-13\",\"maturity\":\"year_2\",\"rate\":0.042699999999999995},{\"date\":\"2024-11-13\",\"maturity\":\"year_3\",\"rate\":0.0425},{\"date\":\"2024-11-13\",\"maturity\":\"year_5\",\"rate\":0.043},{\"date\":\"2024-11-13\",\"maturity\":\"year_7\",\"rate\":0.0438},{\"date\":\"2024-11-13\",\"maturity\":\"year_10\",\"rate\":0.0444},{\"date\":\"2024-11-13\",\"maturity\":\"year_20\",\"rate\":0.0473},{\"date\":\"2024-11-13\",\"maturity\":\"year_30\",\"rate\":0.0463}]"
-                }
-            ]
+            {
+              "name": "startDate",
+              "type": "date",
+              "description": "Date to fetch yield curve data. Will get most recent date if selected is not available.",
+              "default_value": "2025-01-16",
+              "current_value": "2025-01-16",
+              "options": []
+            }
+          ],
+          "metadata": {
+            "source": "EconDB",
+            "lastUpdated": 1737038636601
+          }
         }
+      ],
+      "secondary": [],
+      "extra": []
+    },
+    "messages": [
+      {
+        "role": "human",
+        "content": "Give me the yield curve data to the fourth decimal as a float."
+      },
+      {
+        "role": "ai",
+        "content": "{\"function\":\"get_widget_data\",\"input_arguments\":{\"data_sources\":[{\"origin\":\"OpenBB API\",\"id\":\"yield_curve\",\"input_args\":{\"country\":\"united_states\",\"startDate\":\"2025-01-16\"}}]},\"copilot_function_call_arguments\":{\"data_sources\":[{\"origin\":\"OpenBB API\",\"widget_id\":\"yield_curve\"}]}}"
+      },
+      {
+        "role": "tool",
+        "function": "get_widget_data",
+        "input_arguments": {
+          "data_sources": [
+            {
+              "origin": "OpenBB API",
+              "id": "yield_curve",
+              "input_args": {
+                "country": "united_states",
+                "startDate": "2025-01-16"
+              }
+            }
+          ]
+        },
+        "copilot_function_call_arguments": {
+          "data_sources": [
+            {
+              "origin": "OpenBB API",
+              "widget_id": "yield_curve"
+            }
+          ]
+        },
+        "data": [
+          {
+            "content": [
+              {
+                "date": "2025-01-09",
+                "maturity": "month_1",
+                "rate": 0.0444
+              },
+              {
+                "date": "2025-01-09",
+                "maturity": "month_3",
+                "rate": 0.0435
+              },
+              {
+                "date": "2025-01-09",
+                "maturity": "month_6",
+                "rate": 0.0424
+              },
+              {
+                "date": "2025-01-09",
+                "maturity": "year_1",
+                "rate": 0.0416
+              },
+              {
+                "date": "2025-01-09",
+                "maturity": "year_2",
+                "rate": 0.0427
+              },
+              {
+                "date": "2025-01-09",
+                "maturity": "year_3",
+                "rate": 0.0431
+              },
+              {
+                "date": "2025-01-09",
+                "maturity": "year_5",
+                "rate": 0.0446
+              },
+              {
+                "date": "2025-01-09",
+                "maturity": "year_7",
+                "rate": 0.0457
+              },
+              {
+                "date": "2025-01-09",
+                "maturity": "year_10",
+                "rate": 0.0468
+              },
+              {
+                "date": "2025-01-09",
+                "maturity": "year_20",
+                "rate": 0.0498
+              },
+              {
+                "date": "2025-01-09",
+                "maturity": "year_30",
+                "rate": 0.0492
+              }
+            ]
+          }
+        ]
+      }
     ]
-}
+  }
