@@ -29,7 +29,7 @@ from common.models import (
     LlmFunctionCall,
 )
 import requests
-from .prompts import SYSTEM_PROMPT
+from example_copilot.prompts import SYSTEM_PROMPT
 
 OPENROUTER_API_KEY="APIKEY"
 
@@ -189,7 +189,7 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
                     "messages": formatted_messages,
                     "functions": [_llm_get_widget_data.__dict__] if primary_widgets else None,
                 },
-                timeout=30.0 
+                timeout=30.0
             )
 
         # Stream response back
@@ -203,8 +203,8 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
                         response_data = json.loads(buffer)
                         # Extract the actual message content
                         if (
-                            "choices" in response_data 
-                            and len(response_data["choices"]) > 0 
+                            "choices" in response_data
+                            and len(response_data["choices"]) > 0
                             and "message" in response_data["choices"][0]
                         ):
                             content = response_data["choices"][0]["message"].get("content", "")
@@ -224,7 +224,7 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
                     error_message = f"Error {response.status_code}: {error_data['error']}"
             except json.JSONDecodeError:
                 pass
-                
+
             yield {
                 "event": "copilotMessageChunk",
                 "data": json.dumps({

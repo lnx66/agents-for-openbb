@@ -1,1 +1,1 @@
-web: python example_copilot/main.py
+web: uvicorn example_copilot.main:app --host 0.0.0.0 --port 7777
