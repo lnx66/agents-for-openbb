@@ -13,7 +13,7 @@ python-dotenv = "^1.0.1"
 httpx = "^0.26.0"
 sse-starlette = "^2.1.2"
 magentic = "^0.32.0"
-common = {path = "../common", develop = true}
+common = {path = "common", develop = true}
 
 
 [tool.poetry.group.development.dependencies]
