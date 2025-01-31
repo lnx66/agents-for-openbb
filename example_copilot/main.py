@@ -1,26 +1,29 @@
-import re
 import json
+import os
+import re
 from pathlib import Path
 from typing import AsyncGenerator
-import httpx
 
-from pydantic import BaseModel
+import httpx
+import requests
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from magentic import (
-    FunctionCall,
-    FunctionResultMessage,
-    chatprompt,
-    SystemMessage,
-    UserMessage,
     AssistantMessage,
     AsyncStreamedStr,
+    FunctionCall,
+    FunctionResultMessage,
+    SystemMessage,
+    UserMessage,
+    chatprompt,
 )
+from pydantic import BaseModel
+
 #from magentic.chat_model.litellm_chat_model import LitellmChatModel
 from sse_starlette.sse import EventSourceResponse
 
-from dotenv import load_dotenv
 from common.models import (
     AgentQueryRequest,
     DataSourceRequest,
@@ -28,10 +31,9 @@ from common.models import (
     FunctionCallSSEData,
     LlmFunctionCall,
 )
-import requests
 from example_copilot.prompts import SYSTEM_PROMPT
 
-OPENROUTER_API_KEY="APIKEY"
+OPENROUTER_API_KEY=os.getenv("OPENROUTER_API_KEY")
 
 load_dotenv(".env")
 app = FastAPI()
@@ -180,7 +182,7 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
             response = await client.post(
                 url="https://openrouter.ai/api/v1/chat/completions",
                 headers={
-                    "Authorization": "Bearer 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",
+                    "Authorization": f"Bearer {OPENROUTER_API_KEY}",
                     "HTTP-Referer": "openbb.co",
                     "X-Title": "OpenBB",
                 },
