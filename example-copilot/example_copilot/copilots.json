@@ -1,8 +1,8 @@
 {
 	"example_copilot": {
-		"name": "Example Co. Copilot",
-		"description": "AI-powered financial analyst fine-tuned by Example Co. to answer in the company-approved tone.",
-		"image": "https://github.com/OpenBB-finance/copilot-for-terminal-pro/assets/14093308/7da2a512-93b9-478d-90bc-b8c3dd0cabcf",
+		"name": "DeepSeek R1",
+		"description": "DeepSeek-R1 is a 671B parameter AI model designed to enhance deep learning, natural language processing, and computer vision capabilities",
+		"image": "https://custom.typingmind.com/assets/models/deepseek.png",
 		"hasStreaming": true,
 		"hasDocuments": false,
 		"hasFunctionCalling": false,

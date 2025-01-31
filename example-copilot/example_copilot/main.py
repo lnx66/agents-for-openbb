@@ -2,6 +2,7 @@ import re
 import json
 from pathlib import Path
 from typing import AsyncGenerator
+import httpx
 
 from pydantic import BaseModel
 from fastapi import FastAPI
@@ -16,6 +17,7 @@ from magentic import (
     AssistantMessage,
     AsyncStreamedStr,
 )
+#from magentic.chat_model.litellm_chat_model import LitellmChatModel
 from sse_starlette.sse import EventSourceResponse
 
 from dotenv import load_dotenv
@@ -26,8 +28,10 @@ from common.models import (
     FunctionCallSSEData,
     LlmFunctionCall,
 )
+import requests
 from .prompts import SYSTEM_PROMPT
 
+OPENROUTER_API_KEY="APIKEY"
 
 load_dotenv(".env")
 app = FastAPI()
@@ -161,20 +165,72 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
 
     # This is the mean execution loop for the Copilot.
     async def execution_loop():
-        @chatprompt(
-            SystemMessage(SYSTEM_PROMPT),
-            *chat_messages,
-            functions=[_llm_get_widget_data] if primary_widgets else [],
-        )
-        async def _llm(widgets: str) -> AsyncStreamedStr: ...
+        # Format messages for OpenRouter API
+        formatted_messages = []
+        for msg in chat_messages:
+            if isinstance(msg, SystemMessage):
+                formatted_messages.append({"role": "system", "content": msg.content})
+            elif isinstance(msg, UserMessage):
+                formatted_messages.append({"role": "user", "content": msg.content})
+            elif isinstance(msg, AssistantMessage):
+                formatted_messages.append({"role": "assistant", "content": msg.content})
 
-        result = await _llm(widgets=widgets)
-        if isinstance(result, AsyncStreamedStr):
-            async for event in create_message_stream(result):
-                yield event
-        elif isinstance(result, FunctionCall):
-            async for event in result():
-                yield event
+        # Make request to OpenRouter API
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                url="https://openrouter.ai/api/v1/chat/completions",
+                headers={
+                    "Authorization": "Bearer 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",
+                    "HTTP-Referer": "openbb.co",
+                    "X-Title": "OpenBB",
+                },
+                json={
+                    "model": "deepseek/deepseek-r1",
+                    "messages": formatted_messages,
+                    "functions": [_llm_get_widget_data.__dict__] if primary_widgets else None,
+                },
+                timeout=30.0 
+            )
+
+        # Stream response back
+        if response.status_code == 200:
+            buffer = ""
+            async for chunk in response.aiter_bytes():
+                if chunk:
+                    buffer += chunk.decode()
+                    try:
+                        # Try to parse the complete JSON response
+                        response_data = json.loads(buffer)
+                        # Extract the actual message content
+                        if (
+                            "choices" in response_data 
+                            and len(response_data["choices"]) > 0 
+                            and "message" in response_data["choices"][0]
+                        ):
+                            content = response_data["choices"][0]["message"].get("content", "")
+                            yield {
+                                "event": "copilotMessageChunk",
+                                "data": json.dumps({"delta": content})
+                            }
+                        buffer = ""  # Clear buffer after successful processing
+                    except json.JSONDecodeError:
+                        # If JSON is incomplete, continue accumulating chunks
+                        continue
+        else:
+            error_message = f"Error {response.status_code}: {response.text}"
+            try:
+                error_data = response.json()
+                if "error" in error_data:
+                    error_message = f"Error {response.status_code}: {error_data['error']}"
+            except json.JSONDecodeError:
+                pass
+                
+            yield {
+                "event": "copilotMessageChunk",
+                "data": json.dumps({
+                    "delta": error_message
+                })
+            }
 
     # Stream the SSEs back to the client.
     return EventSourceResponse(
