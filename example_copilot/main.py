@@ -21,7 +21,7 @@ from magentic import (
 )
 from pydantic import BaseModel
 
-#from magentic.chat_model.litellm_chat_model import LitellmChatModel
+# from magentic.chat_model.litellm_chat_model import LitellmChatModel
 from sse_starlette.sse import EventSourceResponse
 
 from common.models import (
@@ -33,7 +33,7 @@ from common.models import (
 )
 from example_copilot.prompts import SYSTEM_PROMPT
 
-OPENROUTER_API_KEY=os.getenv("OPENROUTER_API_KEY")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 load_dotenv(".env")
 app = FastAPI()
@@ -183,15 +183,22 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
                 url="https://openrouter.ai/api/v1/chat/completions",
                 headers={
                     "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                    "HTTP-Referer": "openbb.co",
+                    "HTTP-Referer": "openbb.dev",
                     "X-Title": "OpenBB",
                 },
                 json={
                     "model": "deepseek/deepseek-r1",
                     "messages": formatted_messages,
-                    "functions": [_llm_get_widget_data.__dict__] if primary_widgets else None,
+                    "include_reasoning": True,
+                    "provider": {
+                        "order": ["Together", "Azure"],
+                        "allow_fallbacks": False,
+                    },
+                    "functions": (
+                        [_llm_get_widget_data.__dict__] if primary_widgets else None
+                    ),
                 },
-                timeout=30.0
+                timeout=30.0,
             )
 
         # Stream response back
@@ -212,7 +219,7 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
                             content = response_data["choices"][0]["message"].get("content", "")
                             yield {
                                 "event": "copilotMessageChunk",
-                                "data": json.dumps({"delta": content})
+                                "data": json.dumps({"delta": content}),
                             }
                         buffer = ""  # Clear buffer after successful processing
                     except json.JSONDecodeError:
