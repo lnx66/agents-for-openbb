@@ -1,3 +1,19 @@
+import sys
+from pathlib import Path
+
+current_file = Path(__file__).resolve()
+root_dir = current_file.parent.parent.absolute()
+common_dir = root_dir / 'common'  # Add this line
+
+# Remove both paths if they're already there to avoid duplicates
+for path in [str(root_dir), str(common_dir)]:
+    if path in sys.path:
+        sys.path.remove(path)
+
+# Add both directories to sys.path
+sys.path.insert(0, str(common_dir))
+sys.path.insert(0, str(root_dir))
+
 import json
 import os
 import re
@@ -36,10 +52,10 @@ from common.models import (
 )
 from example_copilot.prompts import SYSTEM_PROMPT
 
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-
-load_dotenv(".env")
+#load_dotenv(".env")
 app = FastAPI()
+
+OPENROUTER_API_KEY=""
 
 origins = [
     "http://localhost",
@@ -171,23 +187,24 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
     # This is the mean execution loop for the Copilot.
     async def execution_loop():
 
-        yield StatusUpdateSSE(
-            data=StatusUpdateSSEData(
-                eventType="INFO",
-                message="Hello....",
-                details=[{"key": "Ok", "value": "Some details here"}],
-                artifacts=[
-                    ClientArtifact(
-                        type="table",
-                        name="A Table",
-                        description="Just a table",
-                        content=[
-                            {"key": "Hi!", "value": "Some value here"},
-                        ],
-                    )
-                ],
-            )
-        ).model_dump()
+        # yield StatusUpdateSSE(
+        #     data=StatusUpdateSSEData(
+        #         eventType="INFO",
+        #         message="Reasoning...",
+        #         details=[{"key": "test"}],
+        #         # details=[{"key": "Ok", "value": "Some details here"}],
+        #         # artifacts=[
+        #         #     ClientArtifact(
+        #         #         type="table",
+        #         #         name="A Table",
+        #         #         description="Just a table",
+        #         #         content=[
+        #         #             {"key": "Hi!", "value": "Some value here"},
+        #         #         ],
+        #         #     )
+        #         # ],
+        #     )
+        # ).model_dump()
 
         # Format messages for OpenRouter API
         formatted_messages = []
@@ -239,6 +256,17 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
                             and "message" in response_data["choices"][0]
                         ):
                             content = response_data["choices"][0]["message"].get("content", "")
+                            reasoning = response_data["choices"][0]["message"].get("reasoning", "")
+                            
+                            if reasoning:
+                                yield StatusUpdateSSE(
+                                    data=StatusUpdateSSEData(
+                                        eventType="INFO",
+                                        message="Reasoning...",
+                                        details=[{"key": "Reasoning", "value": reasoning}],
+                                    )
+                                ).model_dump()
+                            
                             yield {
                                 "event": "copilotMessageChunk",
                                 "data": json.dumps({"delta": content}),
