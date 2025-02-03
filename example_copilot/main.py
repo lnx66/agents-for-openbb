@@ -26,7 +26,10 @@ from sse_starlette.sse import EventSourceResponse
 
 from common.models import (
     AgentQueryRequest,
+    ClientArtifact,
     DataSourceRequest,
+    StatusUpdateSSE,
+    StatusUpdateSSEData,
     FunctionCallSSE,
     FunctionCallSSEData,
     LlmFunctionCall,
@@ -167,6 +170,25 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
 
     # This is the mean execution loop for the Copilot.
     async def execution_loop():
+
+        yield StatusUpdateSSE(
+            data=StatusUpdateSSEData(
+                eventType="INFO",
+                message="Hello....",
+                details=[{"key": "Ok", "value": "Some details here"}],
+                artifacts=[
+                    ClientArtifact(
+                        type="table",
+                        name="A Table",
+                        description="Just a table",
+                        content=[
+                            {"key": "Hi!", "value": "Some value here"},
+                        ],
+                    )
+                ],
+            )
+        ).model_dump()
+
         # Format messages for OpenRouter API
         formatted_messages = []
         for msg in chat_messages:
@@ -243,6 +265,6 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
 
     # Stream the SSEs back to the client.
     return EventSourceResponse(
-        content=execution_loop(),
+        content=(event async for event in execution_loop()),
         media_type="text/event-stream",
     )
