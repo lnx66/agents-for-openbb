@@ -3,7 +3,7 @@ from pathlib import Path
 
 current_file = Path(__file__).resolve()
 root_dir = current_file.parent.parent.absolute()
-common_dir = root_dir / 'common'  # Add this line
+common_dir = root_dir / "common"  # Add this line
 
 # Remove both paths if they're already there to avoid duplicates
 for path in [str(root_dir), str(common_dir)]:
@@ -52,10 +52,10 @@ from common.models import (
 )
 from example_copilot.prompts import SYSTEM_PROMPT
 
-#load_dotenv(".env")
+# load_dotenv(".env")
 app = FastAPI()
 
-OPENROUTER_API_KEY=""
+OPENROUTER_API_KEY = ""
 
 origins = [
     "http://localhost",
@@ -187,108 +187,92 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
     # This is the mean execution loop for the Copilot.
     async def execution_loop():
 
-        # yield StatusUpdateSSE(
-        #     data=StatusUpdateSSEData(
-        #         eventType="INFO",
-        #         message="Reasoning...",
-        #         details=[{"key": "test"}],
-        #         # details=[{"key": "Ok", "value": "Some details here"}],
-        #         # artifacts=[
-        #         #     ClientArtifact(
-        #         #         type="table",
-        #         #         name="A Table",
-        #         #         description="Just a table",
-        #         #         content=[
-        #         #             {"key": "Hi!", "value": "Some value here"},
-        #         #         ],
-        #         #     )
-        #         # ],
-        #     )
-        # ).model_dump()
+        try:
+            # Format messages for OpenRouter API
+            formatted_messages = []
+            for msg in chat_messages:
+                if isinstance(msg, SystemMessage):
+                    formatted_messages.append(
+                        {"role": "system", "content": msg.content}
+                    )
+                elif isinstance(msg, UserMessage):
+                    formatted_messages.append({"role": "user", "content": msg.content})
+                elif isinstance(msg, AssistantMessage):
+                    formatted_messages.append(
+                        {"role": "assistant", "content": msg.content}
+                    )
 
-        # Format messages for OpenRouter API
-        formatted_messages = []
-        for msg in chat_messages:
-            if isinstance(msg, SystemMessage):
-                formatted_messages.append({"role": "system", "content": msg.content})
-            elif isinstance(msg, UserMessage):
-                formatted_messages.append({"role": "user", "content": msg.content})
-            elif isinstance(msg, AssistantMessage):
-                formatted_messages.append({"role": "assistant", "content": msg.content})
-
-        # Make request to OpenRouter API
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                url="https://openrouter.ai/api/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                    "HTTP-Referer": "openbb.dev",
-                    "X-Title": "OpenBB",
-                },
-                json={
-                    "model": "deepseek/deepseek-r1",
-                    "messages": formatted_messages,
-                    "include_reasoning": True,
-                    "provider": {
-                        "order": ["Together", "Azure"],
-                        "allow_fallbacks": False,
+            # Make request to OpenRouter API
+            async with httpx.AsyncClient() as client:
+                async with client.stream(
+                    "POST",
+                    url="https://openrouter.ai/api/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                        "HTTP-Referer": "openbb.dev",
+                        "X-Title": "OpenBB",
                     },
-                    "functions": (
-                        [_llm_get_widget_data.__dict__] if primary_widgets else None
-                    ),
-                },
-                timeout=30.0,
-            )
-
-        # Stream response back
-        if response.status_code == 200:
-            buffer = ""
-            async for chunk in response.aiter_bytes():
-                if chunk:
-                    buffer += chunk.decode()
-                    try:
-                        # Try to parse the complete JSON response
-                        response_data = json.loads(buffer)
-                        # Extract the actual message content
-                        if (
-                            "choices" in response_data
-                            and len(response_data["choices"]) > 0
-                            and "message" in response_data["choices"][0]
-                        ):
-                            content = response_data["choices"][0]["message"].get("content", "")
-                            reasoning = response_data["choices"][0]["message"].get("reasoning", "")
-                            
-                            if reasoning:
-                                yield StatusUpdateSSE(
-                                    data=StatusUpdateSSEData(
-                                        eventType="INFO",
-                                        message="Reasoning...",
-                                        details=[{"key": "Reasoning", "value": reasoning}],
+                    json={
+                        "model": "deepseek/deepseek-r1",
+                        "messages": formatted_messages,
+                        "stream": True,  # Enable streaming
+                        "include_reasoning": True,
+                        "provider": {
+                            "order": ["Together", "Azure"],
+                            "allow_fallbacks": False,
+                        },
+                        "functions": (
+                            [_llm_get_widget_data.__dict__] if primary_widgets else None
+                        ),
+                    },
+                    timeout=30.0,
+                ) as response:
+                    first_reasoning_chunk = True
+                    first_content_chunk = False
+                    async for chunk in response.aiter_bytes():
+                        if chunk:
+                            try:
+                                decoded_chunk = chunk.decode()
+                                data = json.loads(
+                                    decoded_chunk.removeprefix("data: ").removesuffix(
+                                        "\n"
                                     )
-                                ).model_dump()
-                            
-                            yield {
-                                "event": "copilotMessageChunk",
-                                "data": json.dumps({"delta": content}),
-                            }
-                        buffer = ""  # Clear buffer after successful processing
-                    except json.JSONDecodeError:
-                        # If JSON is incomplete, continue accumulating chunks
-                        continue
-        else:
-            error_message = f"Error {response.status_code}: {response.text}"
-            try:
-                error_data = response.json()
-                if "error" in error_data:
-                    error_message = f"Error {response.status_code}: {error_data['error']}"
-            except json.JSONDecodeError:
-                pass
+                                )
+                                delta = data.get("choices", [{}])[0].get("delta", {})
+                                if reasoning := delta.get("reasoning"):
+                                    if first_reasoning_chunk and reasoning != "\n\n":
+                                        first_reasoning_chunk = False
+                                        first_content_chunk = True
+                                        yield StatusUpdateSSE(
+                                            data=StatusUpdateSSEData(
+                                                eventType="INFO",
+                                                message="Reasoning...",
+                                            )
+                                        ).model_dump()
+                                    yield {
+                                        "event": "copilotMessageChunk",
+                                        "data": json.dumps({"delta": reasoning}),
+                                    }
 
+                                if content := delta.get("content"):
+                                    if first_content_chunk:
+                                        first_content_chunk = False
+                                        yield StatusUpdateSSE(
+                                            data=StatusUpdateSSEData(
+                                                eventType="INFO", message="Content...",
+                                            )
+                                        ).model_dump()
+                                    yield {
+                                        "event": "copilotMessageChunk",
+                                        "data": json.dumps({"delta": content}),
+                                    }
+                            except json.JSONDecodeError:
+                                continue
+
+        except Exception as e:
             yield {
                 "event": "copilotMessageChunk",
-                "data": json.dumps({
-                    "delta": error_message
-                })
+                "data": json.dumps({"delta": f"An error occurred: {e}"}),
             }
 
     # Stream the SSEs back to the client.
@@ -296,3 +280,9 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
         content=(event async for event in execution_loop()),
         media_type="text/event-stream",
     )
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run("main:app", port=7777, reload=True)
