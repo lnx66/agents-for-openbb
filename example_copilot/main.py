@@ -52,10 +52,10 @@ from common.models import (
 )
 from example_copilot.prompts import SYSTEM_PROMPT
 
-# load_dotenv(".env")
+load_dotenv(".env")
 app = FastAPI()
 
-OPENROUTER_API_KEY = ""
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 origins = [
     "http://localhost",
