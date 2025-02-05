@@ -14,6 +14,7 @@ httpx = "^0.26.0"
 sse-starlette = "^2.1.2"
 magentic = "^0.32.0"
 common = {path = "../common", develop = true}
+pdfplumber = "^0.11.5"
 
 
 [tool.poetry.group.development.dependencies]
