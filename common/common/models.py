@@ -1,6 +1,12 @@
 from typing import Annotated, Any, Literal
 from uuid import UUID
-from pydantic import BaseModel, Field, HttpUrl, JsonValue, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    HttpUrl,
+    field_validator,
+    model_validator,
+)
 from enum import Enum
 import json
 import uuid
@@ -83,6 +89,7 @@ class LlmClientFunctionCallResult(BaseModel):
         default=None,
         description="Extra state to be passed between the client and this service.",
     )
+
 
 class LlmFunctionCall(BaseModel):
     function: str
