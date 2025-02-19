@@ -629,7 +629,7 @@ Here is an example copilots.json configuration:
         "streaming": true, // <-- whether your copilot supports streaming responses via SSEs. This must always be true.
         "file-upload": false,  // <-- whether the copilot supports uploading files
         "widget-dashboard-select": false,  // <-- specifies if the copilot supports manually selected widgets. These will be sent in `widgets.primary` in the payload.
-        "widget-dashboard-access": false,  // <-- specifies if the copilot supports sending dashboard widgets. These will be sent in `widgets.secondary` in the payload.
+        "widget-dashboard-search": false,  // <-- specifies if the copilot supports sending dashboard widgets. These will be sent in `widgets.secondary` in the payload.
         "widget-global-search": false  // <-- specifies if the copilot supports searching through all available widgets These will be sent in `widgets.extra` in the payload.
     }    
   }
