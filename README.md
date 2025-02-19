@@ -1,9 +1,9 @@
-# Bring your own Copilot to the OpenBB app
+# Bring your own Copilot to the OpenBB Workspace
 
-Welcome to the example repository for integrating custom copilots into the OpenBB app.
+Welcome to the example repository for integrating custom copilots into the OpenBB Workspace.
 
 This repository provides everything you need to build and add your own custom
-copilots that are compatible with the OpenBB app.
+copilots that are compatible with the OpenBB Workspace.
 
 Here are a few common reasons why you might want to build your own copilot:
 - You have a unique data source that you don't want to add as a custom integration to OpenBB.
@@ -15,8 +15,8 @@ Here are a few common reasons why you might want to build your own copilot:
 
 ## Overview
 
-To integrate a custom Copilot that you can interact with from the OpenBB app,
-you'll need to create a backend API that the OpenBB app can make requests to.  
+To integrate a custom Copilot that you can interact with from the OpenBB Workspace,
+you'll need to create a backend API that the OpenBB Workspace can make requests to.  
 
 
 Your custom copilot API will respond with Server-Sent Events
@@ -24,7 +24,7 @@ Your custom copilot API will respond with Server-Sent Events
 
 **Note: If you're looking to get started
 quickly, we suggest running one of the example copilots included as part of
-this repository, and adding it as a custom copilot to the OpenBB app (each example copilot includes instructions on how to run them). Cloning and modifying an example copilot is a great way to build a custom copilot.**
+this repository, and adding it as a custom copilot to the OpenBB Workspace (each example copilot includes instructions on how to run them). Cloning and modifying an example copilot is a great way to build a custom copilot.**
 
 ## Migration guide
 
@@ -33,19 +33,19 @@ this repository, and adding it as a custom copilot to the OpenBB app (each examp
 ## The Copilot protocol is stateless
 
 The most important concept to understand is that the copilot protocol is
-_stateless_.  This means that every request from the OpenBB app to your copilot
+_stateless_.  This means that every request from the OpenBB Workspace to your copilot
 will include all previous messages (such as AI completions, human messages,
 function calls, and function call results) in the request payload.
 
 This means it is not necessary for your custom copilot to maintain any state
 between requests. It should simply use the request payload to generate a response.
 
-The OpenBB app is solely responsible for maintaining the conversation state, and will
+The OpenBB Workspace is solely responsible for maintaining the conversation state, and will
 append the responses to the `messages` array in the request payload. 
 
-## Handling requests from the OpenBB app
+## Handling requests from the OpenBB Workspace
 
-The OpenBB app will make POST requests to the `query` endpoint defined in your
+The OpenBB Workspace will make POST requests to the `query` endpoint defined in your
 `copilots.json` file (more on this later). The payload of this request will
 contain data such as the current conversation's messages, any explicitly-added
 context, information about widgets on the currently-active dashboard, URLs to
@@ -147,7 +147,7 @@ results. Each message has a `role` and `content`.
 The simplest example is when no function calling is involved, which simply
 consists of an array of `human` and `ai` messages.
 
-The OpenBB app automatically appends all return `ai` messages (from your Copilot)
+The OpenBB Workspace automatically appends all return `ai` messages (from your Copilot)
 to the `messages` array of any follow-up request.
 
 ```python
@@ -184,7 +184,7 @@ to the `messages` array of any follow-up request.
 }
 ```
 
-Function calls to the OpenBB app (such as when retrieving widget data), as well as the results of those function calls (containing the widget data), are also included in the `messages` array. For information on function calling, see the "Function Calling" section below.
+Function calls to the OpenBB Workspace (such as when retrieving widget data), as well as the results of those function calls (containing the widget data), are also included in the `messages` array. For information on function calling, see the "Function Calling" section below.
 
 #### `widgets`
 
@@ -251,7 +251,7 @@ widgets in the currently-active dashboard (`secondary`), or widgets that are glo
 
 #### `context`
 
-This is an optional array of artifact data that will be sent by the OpenBB app
+This is an optional array of artifact data that will be sent by the OpenBB Workspace
 when artifacts have been returned by your custom copilot. 
 
 The `context` field works as follows:
@@ -290,27 +290,27 @@ The `context` field works as follows:
 ```
 
 
-## Responding to the OpenBB app
+## Responding to the OpenBB Workspace
 
-Your custom copilot must respond to the OpenBB app's request using a variety of Server-Sent Events (SSEs).
+Your custom copilot must respond to the OpenBB Workspace's request using a variety of Server-Sent Events (SSEs).
 
-The OpenBB app can process the following SSEs:
+The OpenBB Workspace can process the following SSEs:
 
 - `copilotMessageChunk`: Used to return streamed copilot tokens (partial
-responses) back to the OpenBB app. These responses can be streamed as they are
+responses) back to the OpenBB Workspace These responses can be streamed as they are
 generated.
-- `copilotMessageArtifact`: Used to return an artifact to the OpenBB app as part
+- `copilotMessageArtifact`: Used to return an artifact to the OpenBB Workspace as part
 of the Copilot's response. This allows your copilot to return tables, charts,
-and long-form text excerpts that will be rendered by the OpenBB app. Often
+and long-form text excerpts that will be rendered by the OpenBB Workspace Often
 interleaved the `copilotMessageChunk` SSEs.
-- `copilotCitationCollection`: Used to return a collection of citations back to the OpenBB app. This is useful for returning structured data, such as a list of news articles, research reports, or other sources that were used to generate the Copilot's response. This should be returned after the `copilotMessageChunk` SSEs have finished streaming.
+- `copilotCitationCollection`: Used to return a collection of citations back to the OpenBB Workspace This is useful for returning structured data, such as a list of news articles, research reports, or other sources that were used to generate the Copilot's response. This should be returned after the `copilotMessageChunk` SSEs have finished streaming.
 - `copilotFunctionCall`: Used to request data (e.g., widget data) or perform a
-specific function. This instructs the OpenBB app to take further action on the
+specific function. This instructs the OpenBB Workspace to take further action on the
 client's side. This is only necessary if you're planning on implementing
 function calling in your custom copilot.
 - `copilotStatusUpdate`: Used to send status updates or "reasoning steps" back to
-the OpenBB app. These are user-friendly "updates" that are displayed in the
-copilot window of the OpenBB app, and are useful for informing the user about what your custom copilot is doing under-the-hood.
+the OpenBB Workspace These are user-friendly "updates" that are displayed in the
+copilot window of the OpenBB Workspace, and are useful for informing the user about what your custom copilot is doing under-the-hood.
 
 #### `copilotMessageChunk`
 The message chunk SSE has the following format:
@@ -388,9 +388,9 @@ data: {"function":"get_widget_data","input_arguments":{"data_sources":[{"origin"
 ```
 
 
-After emitting a `copilotFunctionCall` event, you must close the connection and wait for a new query request from the OpenBB app.
+After emitting a `copilotFunctionCall` event, you must close the connection and wait for a new query request from the OpenBB Workspace
 
-When a `copilotFunctionCall` event is received, the OpenBB app will retrieve
+When a `copilotFunctionCall` event is received, the OpenBB Workspace will retrieve
 the data, and initiate a **new** query request. This new query request will
 include the original function call, as well as the function call result in the
 `messages` array.
@@ -446,11 +446,11 @@ Notice that:
 - Both the function call and the function call result are included in the `messages` array. 
 - The `content` field of the function call `ai` message is a verbatim string-encoded JSON object of the `data` field of the `copilotFunctionCall` event (this is a very useful mechanism for smuggling additional metadata related to the function call, if your copilot needs it).
 
-Currently, the only function call supported by the OpenBB app is `get_widget_data`, which retrieves data from a specific widget.
+Currently, the only function call supported by the OpenBB Workspace is `get_widget_data`, which retrieves data from a specific widget.
 
 ### Function call example
 
-Your custom copilot receives the following request from the OpenBB app:
+Your custom copilot receives the following request from the OpenBB Workspace:
 
 ```json
 {
@@ -499,7 +499,7 @@ event: copilotFunctionCall
 data: {"function":"get_widget_data","input_arguments":{"data_sources":[{"origin":"openbb_api","id":"historical_stock_price","input_args":{"symbol":"AAPL"}}]},"copilot_function_call_arguments":{"data_sources":[{"origin":"openbb_api","widget_id":"historical_stock_price"}]}}
 ```
 
-The OpenBB app will then execute the specified function, and make a new query request to your custom copilot:
+The OpenBB Workspace will then execute the specified function, and make a new query request to your custom copilot:
 
 ```python
 {
@@ -605,9 +605,9 @@ data: {"delta":" $150.75."}
 ```
 
 
-## Configuring your custom copilot for the OpenBB app (`copilots.json`)
+## Configuring your custom copilot for the OpenBB Workspace (`copilots.json`)
 
-To integrate your custom copilot with the OpenBB app, you need to configure and
+To integrate your custom copilot with the OpenBB Workspace, you need to configure and
 serve a `copilots.json` file. This file defines how your custom copilot connects
 with the frontend, including which features are supported by your custom
 copilot, and where requests  should be sent.  
@@ -623,7 +623,7 @@ Here is an example copilots.json configuration:
     "hasStreaming": true, # <-- whether your copilot supports streaming responses via SSEs. This must always be true.
     "hasFunctionCalling": true, # <-- whether your copilot supports function calling
     "endpoints": {
-      "query": "<url>" # <-- the URL that the OpenBB app will send requests to. For example, "http://localhost:7777/v1/query"
+      "query": "<url>" # <-- the URL that the OpenBB Workspace will send requests to. For example, "http://localhost:7777/v1/query"
     }
   }
 }
