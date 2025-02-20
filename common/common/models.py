@@ -1,6 +1,12 @@
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 from uuid import UUID
-from pydantic import BaseModel, Field, JsonValue, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    HttpUrl,
+    field_validator,
+    model_validator,
+)
 from enum import Enum
 import json
 import uuid
@@ -18,19 +24,52 @@ class ChartParameters(BaseModel):
     yKey: list[str]
 
 
-class DataFormat(BaseModel):
-    """Describe the format of the data, and how it should be handled."""
-
-    type: Literal["text", "table", "chart"] | None = None
+class RawObjectDataFormat(BaseModel):
+    data_type: Literal["object"] = "object"
+    parse_as: Literal["text", "table", "chart"] = "table"
     chart_params: ChartParameters | None = None
+
+    @model_validator(mode="after")
+    def validate_chart_params(cls, values):
+        if values.parse_as == "chart" and not values.chart_params:
+            raise ValueError("chart_params is required when parse_as is 'chart'")
+        if values.parse_as != "chart" and values.chart_params:
+            raise ValueError("chart_params is only allowed when parse_as is 'chart'")
+        return values
+
+
+class PdfDataFormat(BaseModel):
+    data_type: Literal["pdf"]
+    filename: str
+
+
+class ImageDataFormat(BaseModel):
+    data_type: Literal["jpg", "jpeg", "png"]
+    filename: str
+
+
+# Discriminated union of data formats
+DataFormat = Annotated[
+    RawObjectDataFormat | PdfDataFormat | ImageDataFormat,
+    Field(discriminator="data_type", default_factory=RawObjectDataFormat),
+]
 
 
 class DataContent(BaseModel):
-    content: JsonValue = Field(
-        description="The data content, which must be JSON-serializable. Can be a primitive type (str, int, float, bool), list, or dict."  # noqa: E501
+    content: str = Field(
+        description="The data content, either as a raw string, JSON string, or as a base64 encoded string."  # noqa: E501
     )
-    data_format: DataFormat | None = Field(
-        default=None,
+    data_format: DataFormat = Field(
+        default_factory=RawObjectDataFormat,
+        description="How the data should be parsed and handled.",
+    )
+
+
+class DataFileReference(BaseModel):
+    file_reference: UUID | HttpUrl = Field(
+        description="The file reference to the data file. Either a OpenBB Hub file UUID, or a URL to a file."  # noqa: E501
+    )
+    data_format: DataFormat = Field(
         description="Optional. How the data should be parsed. If not provided, a best-effort attempt will be made to automatically determine the data format.",  # noqa: E501
     )
 
@@ -43,16 +82,18 @@ class LlmClientFunctionCallResult(BaseModel):
     input_arguments: dict[str, Any] | None = Field(
         default=None, description="The input arguments passed to the function"
     )
-    data: list[DataContent] = Field(description="The content of the function call.")
+    data: list[DataContent | DataFileReference] = Field(
+        description="The content of the function call."
+    )
+    extra_state: dict[str, Any] | None = Field(
+        default=None,
+        description="Extra state to be passed between the client and this service.",
+    )
 
 
 class LlmFunctionCall(BaseModel):
     function: str
     input_arguments: dict[str, Any]
-
-
-class DataContent(BaseModel):
-    content: Any = Field(description="The data content of the widget")
 
 
 class RawContext(BaseModel):

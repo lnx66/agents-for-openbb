@@ -86,63 +86,7 @@
         },
         "data": [
           {
-            "content": [
-              {
-                "date": "2025-01-09",
-                "maturity": "month_1",
-                "rate": 0.0444
-              },
-              {
-                "date": "2025-01-09",
-                "maturity": "month_3",
-                "rate": 0.0435
-              },
-              {
-                "date": "2025-01-09",
-                "maturity": "month_6",
-                "rate": 0.0424
-              },
-              {
-                "date": "2025-01-09",
-                "maturity": "year_1",
-                "rate": 0.0416
-              },
-              {
-                "date": "2025-01-09",
-                "maturity": "year_2",
-                "rate": 0.0427
-              },
-              {
-                "date": "2025-01-09",
-                "maturity": "year_3",
-                "rate": 0.0431
-              },
-              {
-                "date": "2025-01-09",
-                "maturity": "year_5",
-                "rate": 0.0446
-              },
-              {
-                "date": "2025-01-09",
-                "maturity": "year_7",
-                "rate": 0.0457
-              },
-              {
-                "date": "2025-01-09",
-                "maturity": "year_10",
-                "rate": 0.0468
-              },
-              {
-                "date": "2025-01-09",
-                "maturity": "year_20",
-                "rate": 0.0498
-              },
-              {
-                "date": "2025-01-09",
-                "maturity": "year_30",
-                "rate": 0.0492
-              }
-            ]
+            "content": "[{\"date\":\"2025-01-09\",\"maturity\":\"month_1\",\"rate\":0.0444},{\"date\":\"2025-01-09\",\"maturity\":\"month_3\",\"rate\":0.0435},{\"date\":\"2025-01-09\",\"maturity\":\"month_6\",\"rate\":0.0424},{\"date\":\"2025-01-09\",\"maturity\":\"year_1\",\"rate\":0.0416},{\"date\":\"2025-01-09\",\"maturity\":\"year_2\",\"rate\":0.0427},{\"date\":\"2025-01-09\",\"maturity\":\"year_3\",\"rate\":0.0431},{\"date\":\"2025-01-09\",\"maturity\":\"year_5\",\"rate\":0.0446},{\"date\":\"2025-01-09\",\"maturity\":\"year_7\",\"rate\":0.0457},{\"date\":\"2025-01-09\",\"maturity\":\"year_10\",\"rate\":0.0468},{\"date\":\"2025-01-09\",\"maturity\":\"year_20\",\"rate\":0.0498},{\"date\":\"2025-01-09\",\"maturity\":\"year_30\",\"rate\":0.0492}]"
           }
         ]
       }
