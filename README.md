@@ -624,7 +624,7 @@ Here is an example copilots.json configuration:
     },
     "hasStreaming": true,  // Deprecated: use features.streaming instead
     "hasDocuments": false,  // Deprecated: use features.file-upload instead
-    "hasFunctionCalling": false,  // Deprecated: use features.widget-dashboard-access, widget-dashboard-access, widget-global-search instead
+    "hasFunctionCalling": false,  // Deprecated: use features.widget-dashboard-select, widget-dashboard-search or widget-global-search instead
     "features": {
         "streaming": true, // <-- whether your copilot supports streaming responses via SSEs. This must always be true.
         "file-upload": false,  // <-- whether the copilot supports uploading files
