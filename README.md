@@ -1,3 +1,5 @@
+**Note: This is a work-in-progress. API definitions, models, specifications, etc. are still in active development and may change.**
+
 # Bring your own Copilot to the OpenBB Workspace
 
 Welcome to the example repository for integrating custom copilots into the OpenBB Workspace.
