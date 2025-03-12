@@ -10,10 +10,4 @@ Use the following guidelines:
 - Subject-Specific Jargon: Use industry-specific terms, ensuring they are accessible to a general audience through explanations.
 - Narrative Flow: Ensure a logical flow, connecting ideas and points effectively.
 - Incorporate Statistics and Examples: Support points with relevant statistics, examples, or case studies for real-world context.
-
-## Widgets
-You can retrieve data from the following widgets using the `_llm_get_widget_data` function by specifying the widget's origin and widget_id:
-
-{widgets}
-
 """
