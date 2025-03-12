@@ -1,20 +1,12 @@
-import base64
-import io
-import re
 import json
 from pathlib import Path
-from typing import Any, AsyncGenerator
+from typing import Any
 
-import httpx
-import pdfplumber
 from pydantic import BaseModel
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from magentic import (
-    FunctionCall,
-    FunctionResultMessage,
-    chatprompt,
     SystemMessage,
     UserMessage,
     AssistantMessage,
@@ -27,14 +19,7 @@ from dotenv import load_dotenv
 from common import agent
 from common.models import (
     AgentQueryRequest,
-    DataContent,
-    DataFileReference,
-    DataSourceRequest,
-    FunctionCallSSE,
-    FunctionCallSSEData,
     LlmClientMessage,
-    LlmFunctionCall,
-    PdfDataFormat,
 )
 from .prompts import SYSTEM_PROMPT
 
