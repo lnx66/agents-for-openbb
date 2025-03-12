@@ -1,31 +1,31 @@
 **Note: This is a work-in-progress. API definitions, models, specifications, etc. are still in active development and may change.**
 
-# Bring your own Copilot to the OpenBB Workspace
+# Bring your own Agent to the OpenBB Workspace
 
-Welcome to the example repository for integrating custom copilots into the OpenBB Workspace.
+Welcome to the example repository for integrating custom agents into the OpenBB Workspace.
 
 This repository provides everything you need to build and add your own custom
-copilots that are compatible with the OpenBB Workspace.
+agents that are compatible with the OpenBB Workspace.
 
-Here are a few common reasons why you might want to build your own copilot:
+Here are a few common reasons why you might want to build your own agent:
 - You have a unique data source that you don't want to add as a custom integration to OpenBB.
 - You want to use a specific LLM.
 - You want to use a local LLM.
-- You want a Copilot that is self-hosted on your infrastructure.
+- You want a agent that is self-hosted on your infrastructure.
 - You are running on-premise in a locked-down environment that doesn't allow data to leave your VPC.
 
 
 ## Overview
 
-To integrate a custom Copilot that you can interact with from the OpenBB Workspace,
+To integrate a custom agent that you can interact with from the OpenBB Workspace,
 you'll need to create a backend API that the OpenBB Workspace can make requests to.  
 
 
-Your custom copilot API will respond with Server-Sent Events
+Your custom agent API will respond with Server-Sent Events
 ([SSEs](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events)).
 
 **Note: If you're looking to get started
-quickly, we suggest running one of the example copilots included as part of
+quickly, we suggest running one of the example agents included as part of
 this repository, and adding it as a custom copilot to the OpenBB Workspace (each example copilot includes instructions on how to run them). Cloning and modifying an example copilot is a great way to build a custom copilot.**
 
 ## Migration guide
