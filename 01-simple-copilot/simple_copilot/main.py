@@ -44,11 +44,6 @@ app.add_middleware(
 )
 
 
-class WidgetDataRequest(BaseModel):
-    origin: str
-    widget_id: str
-
-
 @app.get("/copilots.json")
 def get_copilot_description():
     """Widgets configuration file for the OpenBB Terminal Pro"""
