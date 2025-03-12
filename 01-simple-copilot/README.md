@@ -1,10 +1,12 @@
 # Simple Copilot
+
 This is a simple copilot, powered by OpenAI, that can perform question answering.
 
 It does not support function calling or retrieving data from the OpenBB Workspace.
 
 ## Architecture
-```
+
+```sh
 ┌─────────────────────┐                ┌─────────────────────┐
 │                     │                │                     │
 │   OpenBB Workspace  │ ───────────>   │   Simple Copilot    │
@@ -17,6 +19,7 @@ It does not support function calling or retrieving data from the OpenBB Workspac
 ```
 
 The architecture consists of two main components:
+
 1. **OpenBB Workspace (Frontend)**: The user interface where queries are entered
 2. **Simple Copilot (Backend)**: Powered by OpenAI, handles the processing of queries and returns answers
 
@@ -24,6 +27,7 @@ The frontend communicates with the backend via HTTP requests to the `/query`
 endpoint as defined in the copilot.json schema.
 
 ## Overview
+
 This implementation utilizes a FastAPI application to serve as the backend for
 the copilot. The core functionality is powered by `magentic`, a robust, minimal
 framework for working with Large Language Models (LLMs).
@@ -45,12 +49,13 @@ Python, as well as your OpenAI API key.
 ### Installation and Running
 
 1. Clone this repository to your local machine.
+
 2. Set the OpenAI API key as an environment variable in your .bashrc or .zshrc file:
 
-``` sh
-# in .zshrc or .bashrc
-export OPENAI_API_KEY=<your-api-key>
-```
+    ``` sh
+    # in .zshrc or .bashrc
+    export OPENAI_API_KEY=<your-api-key>
+    ```
 
 3. Install the necessary dependencies:
 
@@ -67,13 +72,14 @@ poetry run uvicorn simple_copilot.main:app --port 7777 --reload
 This command runs the FastAPI application, making it accessible on your network.
 
 ### Testing the Copilot
+
 The example copilot has a small, basic test suite to ensure it's
 working correctly. As you develop your copilot, you are highly encouraged to
 expand these tests.
 
 You can run the tests with:
 
-``` sh
+```sh
 pytest tests
 ```
 
