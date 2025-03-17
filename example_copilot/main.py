@@ -20,8 +20,9 @@ import re
 from pathlib import Path
 from typing import AsyncGenerator
 
+import logging
+
 import httpx
-import requests
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -33,7 +34,6 @@ from magentic import (
     FunctionResultMessage,
     SystemMessage,
     UserMessage,
-    chatprompt,
 )
 from pydantic import BaseModel
 
@@ -42,7 +42,6 @@ from sse_starlette.sse import EventSourceResponse
 
 from common.models import (
     AgentQueryRequest,
-    ClientArtifact,
     DataSourceRequest,
     StatusUpdateSSE,
     StatusUpdateSSEData,
@@ -50,10 +49,12 @@ from common.models import (
     FunctionCallSSEData,
     LlmFunctionCall,
 )
-from example_copilot.prompts import SYSTEM_PROMPT
 
 load_dotenv(".env")
 app = FastAPI()
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
@@ -186,7 +187,6 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
 
     # This is the mean execution loop for the Copilot.
     async def execution_loop():
-
         try:
             # Format messages for OpenRouter API
             formatted_messages = []
@@ -203,6 +203,7 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
                     )
 
             # Make request to OpenRouter API
+            accumulated_reasoning = ""
             async with httpx.AsyncClient() as client:
                 async with client.stream(
                     "POST",
@@ -218,8 +219,8 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
                         "stream": True,  # Enable streaming
                         "include_reasoning": True,
                         "provider": {
-                            "order": ["Together", "Azure"],
-                            "allow_fallbacks": False,
+                            "order": ["Azure"],
+                            "allow_fallbacks": True,
                         },
                         "functions": (
                             [_llm_get_widget_data.__dict__] if primary_widgets else None
@@ -227,47 +228,57 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
                     },
                     timeout=30.0,
                 ) as response:
-                    first_reasoning_chunk = True
-                    first_content_chunk = False
-                    async for chunk in response.aiter_bytes():
+                    is_reasoning = False
+                    is_content = False
+                    async for chunk in response.aiter_lines():
                         if chunk:
+                            # This is just the SSE keeping the  connection alive
+                            if "OPENROUTER PROCESSING" in chunk:
+                                continue
+
                             try:
-                                decoded_chunk = chunk.decode()
                                 data = json.loads(
-                                    decoded_chunk.removeprefix("data: ").removesuffix(
-                                        "\n"
-                                    )
+                                    chunk.removeprefix("data: ").removesuffix("\n")
                                 )
                                 delta = data.get("choices", [{}])[0].get("delta", {})
-                                if reasoning := delta.get("reasoning"):
-                                    if first_reasoning_chunk and reasoning != "\n\n":
-                                        first_reasoning_chunk = False
-                                        first_content_chunk = True
+                                logger.info(f"Delta: {delta}")
+                                if reasoning_delta := delta.get("reasoning"):
+                                    # If we're not currently reasoning, let's let
+                                    # the client know that we're thinking.
+                                    if not is_reasoning:
+                                        accumulated_reasoning = ""
+                                        is_reasoning = True
                                         yield StatusUpdateSSE(
                                             data=StatusUpdateSSEData(
                                                 eventType="INFO",
-                                                message="Reasoning...",
+                                                message="Deepseek R1 is thinking...",
                                             )
                                         ).model_dump()
-                                    yield {
-                                        "event": "copilotMessageChunk",
-                                        "data": json.dumps({"delta": reasoning}),
-                                    }
+                                    accumulated_reasoning += reasoning_delta
 
                                 if content := delta.get("content"):
-                                    if first_content_chunk:
-                                        first_content_chunk = False
+                                    is_reasoning = False
+                                    if not is_content:
+                                        is_content = True
                                         yield StatusUpdateSSE(
                                             data=StatusUpdateSSEData(
-                                                eventType="INFO", message="Content...",
+                                                eventType="INFO",
+                                                message="Thinking complete",
+                                                details=[
+                                                    {"Thinking": accumulated_reasoning}
+                                                ],
                                             )
                                         ).model_dump()
+
                                     yield {
                                         "event": "copilotMessageChunk",
                                         "data": json.dumps({"delta": content}),
                                     }
                             except json.JSONDecodeError:
+                                logger.info(f"JSONDecodeError: {chunk}")
                                 continue
+
+            logger.info("Streaming complete")
 
         except Exception as e:
             yield {
@@ -282,7 +293,7 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
     )
 
 
-if __name__ == "__main__":
-    import uvicorn
+# if __name__ == "__main__":
+#     import uvicorn
 
-    uvicorn.run("main:app", port=7777, reload=True)
+#     uvicorn.run("main:app", port=7777, reload=True)
