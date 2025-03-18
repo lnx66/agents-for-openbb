@@ -50,10 +50,16 @@ from common.models import (
     LlmFunctionCall,
 )
 
-load_dotenv(".env")
+if os.path.exists(".env"):
+    load_dotenv(".env")
+
 app = FastAPI()
 
-logging.basicConfig(level=logging.INFO)
+# Get the log level from the environment variable, default to INFO if not set
+log_level_str = os.getenv("LOG_LEVEL", "INFO").upper()
+log_level = getattr(logging, log_level_str, logging.INFO)
+
+logging.basicConfig(level=log_level)
 logger = logging.getLogger(__name__)
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
@@ -97,9 +103,15 @@ async def create_message_stream(
 @app.get("/copilots.json")
 def get_copilot_description():
     """Widgets configuration file for the OpenBB Terminal Pro"""
-    return JSONResponse(
-        content=json.load(open((Path(__file__).parent.resolve() / "copilots.json")))
-    )
+    with open((Path(__file__).parent.resolve() / "copilots.json"), "r") as f:
+        copilots_json = json.load(f)
+        if os.getenv("HOST_URL"):
+            copilots_json["example_copilot"]["endpoints"]["query"] = copilots_json[
+                "example_copilot"
+            ]["endpoints"]["query"].replace(
+                "http://localhost:7777", os.getenv("HOST_URL")
+            )
+    return JSONResponse(content=copilots_json)
 
 
 @app.post("/v1/query")
