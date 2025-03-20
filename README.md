@@ -1,29 +1,31 @@
-# Bring your own Copilot to the OpenBB Workspace
+**Note: This is a work-in-progress. API definitions, models, specifications, etc. are still in active development and may change.**
 
-Welcome to the example repository for integrating custom copilots into the OpenBB Workspace.
+# Bring your own Agent to the OpenBB Workspace
+
+Welcome to the example repository for integrating custom agents into the OpenBB Workspace.
 
 This repository provides everything you need to build and add your own custom
-copilots that are compatible with the OpenBB Workspace.
+agents that are compatible with the OpenBB Workspace.
 
-Here are a few common reasons why you might want to build your own copilot:
+Here are a few common reasons why you might want to build your own agent:
 - You have a unique data source that you don't want to add as a custom integration to OpenBB.
 - You want to use a specific LLM.
 - You want to use a local LLM.
-- You want a Copilot that is self-hosted on your infrastructure.
+- You want a agent that is self-hosted on your infrastructure.
 - You are running on-premise in a locked-down environment that doesn't allow data to leave your VPC.
 
 
 ## Overview
 
-To integrate a custom Copilot that you can interact with from the OpenBB Workspace,
+To integrate a custom agent that you can interact with from the OpenBB Workspace,
 you'll need to create a backend API that the OpenBB Workspace can make requests to.  
 
 
-Your custom copilot API will respond with Server-Sent Events
+Your custom agent API will respond with Server-Sent Events
 ([SSEs](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events)).
 
 **Note: If you're looking to get started
-quickly, we suggest running one of the example copilots included as part of
+quickly, we suggest running one of the example agents included as part of
 this repository, and adding it as a custom copilot to the OpenBB Workspace (each example copilot includes instructions on how to run them). Cloning and modifying an example copilot is a great way to build a custom copilot.**
 
 ## Migration guide
@@ -288,6 +290,7 @@ The `context` field works as follows:
   ...
 }
 ```
+
 
 ## Responding to the OpenBB Workspace
 
@@ -613,12 +616,14 @@ copilot, and where requests  should be sent.
 
 Here is an example copilots.json configuration:
 
-```json
+```python
 {
-  "example_copilot": { // <-- the ID of your copilot
-    "name": "Mistral Example Co. Copilot", // <-- the display name of your copilot
-    "description": "AI-powered financial copilot that uses Mistral Large as its LLM.", // <-- a short description of your copilot
-    "image": "<url>", // <-- a URL to an image icon for your copilot
+  "example_copilot": { # <-- the ID of your copilot
+    "name": "Mistral Example Co. Copilot", # <-- the display name of your copilot
+    "description": "AI-powered financial copilot that uses Mistral Large as its LLM.", # <-- a short description of your copilot
+    "image": "<url>", # <-- a URL to an image icon for your copilot
+    "hasStreaming": true, # <-- whether your copilot supports streaming responses via SSEs. This must always be true.
+    "hasFunctionCalling": true, # <-- whether your copilot supports function calling
     "endpoints": {
       "query": "<url>" # <-- the URL that the OpenBB Workspace will send requests to. For example, "http://localhost:7777/v1/query"
     },
@@ -631,7 +636,7 @@ Here is an example copilots.json configuration:
         "widget-dashboard-select": false,  // <-- specifies if the copilot supports manually selected widgets. These will be sent in `widgets.primary` in the payload.
         "widget-dashboard-search": false,  // <-- specifies if the copilot supports sending dashboard widgets. These will be sent in `widgets.secondary` in the payload.
         "widget-global-search": false  // <-- specifies if the copilot supports searching through all available widgets These will be sent in `widgets.extra` in the payload.
-    }    
+    }
   }
 }
 ```
