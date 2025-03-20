@@ -622,10 +622,18 @@ Here is an example copilots.json configuration:
     "name": "Mistral Example Co. Copilot", # <-- the display name of your copilot
     "description": "AI-powered financial copilot that uses Mistral Large as its LLM.", # <-- a short description of your copilot
     "image": "<url>", # <-- a URL to an image icon for your copilot
-    "hasStreaming": true, # <-- whether your copilot supports streaming responses via SSEs. This must always be true.
-    "hasFunctionCalling": true, # <-- whether your copilot supports function calling
     "endpoints": {
       "query": "<url>" # <-- the URL that the OpenBB Workspace will send requests to. For example, "http://localhost:7777/v1/query"
+    },
+    "hasStreaming": true,  // Deprecated: use features.streaming instead
+    "hasDocuments": false,  // Deprecated: not applicable anymore
+    "hasFunctionCalling": false,  // Deprecated: use features.widget-dashboard-select, widget-dashboard-search or widget-global-search instead
+    "features": {
+        "streaming": true, // <-- whether your copilot supports streaming responses via SSEs. This must always be true.
+        "file-upload": false,  // <-- whether the copilot supports uploading files
+        "widget-dashboard-select": false,  // <-- specifies if the copilot supports manually selected widgets. These will be sent in `widgets.primary` in the payload.
+        "widget-dashboard-search": false,  // <-- specifies if the copilot supports sending dashboard widgets. These will be sent in `widgets.secondary` in the payload.
+        "widget-global-search": false  // <-- specifies if the copilot supports searching through all available widgets These will be sent in `widgets.extra` in the payload.
     }
   }
 }
