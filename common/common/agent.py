@@ -27,7 +27,7 @@ async def create_message_stream(
         yield {"event": "copilotMessageChunk", "data": json.dumps({"delta": chunk})}
 
 
-def prepare_messaages(
+def prepare_messages(
     system_prompt: str,
     messages: list[LlmClientFunctionCallResult | LlmClientMessage],
 ) -> list[AnyMessage]:
