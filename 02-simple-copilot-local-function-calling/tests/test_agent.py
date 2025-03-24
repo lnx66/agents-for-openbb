@@ -4,6 +4,7 @@ from simple_copilot_fc.main import app
 import pytest
 from pathlib import Path
 from common.testing import capture_stream_response
+from unittest.mock import AsyncMock, patch
 
 test_client = TestClient(app)
 
@@ -63,9 +64,21 @@ def test_query_local_function_call():
             }
         ]
     }
-    response = test_client.post("/v1/query", json=test_payload)
-    event_name, captured_stream = capture_stream_response(response.text)
+    with patch(
+        "simple_copilot_fc.main.get_random_palettes", new_callable=AsyncMock
+    ) as mock_get_random_palettes:
+        mock_get_random_palettes.return_value = """
+-- Palettes --
+name: Cycling Trivialities
+url: http://www.colourlovers.com/palette/2404704/Cycling_Trivialities
+imageUrl (use this to display the palette image): http://www.colourlovers.com/paletteImg/C87FD4/AF8DC4/958CB8/928DCC/8A91D4/Cycling_Trivialities.png
+colours: ['#C87FD4', '#AF8DC4', '#958CB8', '#928DCC', '#8A91D4']
+-----------------------------------
+"""  # noqa: E501
+        response = test_client.post("/v1/query", json=test_payload)
+        event_name, captured_stream = capture_stream_response(response.text)
 
-    assert response.status_code == 200
-    assert event_name == "copilotMessageChunk"
-    assert "colourlovers.com" in captured_stream
+        assert response.status_code == 200
+        assert event_name == "copilotMessageChunk"
+        mock_get_random_palettes.assert_called_once()
+        assert "colourlovers.com" in captured_stream
