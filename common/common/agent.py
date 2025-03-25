@@ -1,5 +1,10 @@
 import json
-from common.models import LlmClientFunctionCallResult, LlmClientMessage, StatusUpdateSSE, StatusUpdateSSEData
+from common.models import (
+    LlmClientFunctionCallResult,
+    LlmClientMessage,
+    StatusUpdateSSE,
+    StatusUpdateSSEData,
+)
 from magentic import (
     AssistantMessage,
     AsyncStreamedStr,
@@ -27,6 +32,7 @@ async def create_message_stream(
     async for chunk in content:
         yield {"event": "copilotMessageChunk", "data": json.dumps({"delta": chunk})}
 
+
 def reasoning_step(
     event_type: Literal["INFO", "WARNING", "ERROR"],
     message: str,
@@ -39,6 +45,7 @@ def reasoning_step(
             details=[details] if details else [],
         )
     )
+
 
 def prepare_messages(
     system_prompt: str,
@@ -79,7 +86,9 @@ async def run_agent(
                 # Otherwise, append to the function call result.
                 else:
                     function_call_result += str(event)
-            chat = chat.add_message(FunctionResultMessage(
-                content=function_call_result,
-                function_call=chat.last_message.content,
-            ))
+            chat = chat.add_message(
+                FunctionResultMessage(
+                    content=function_call_result,
+                    function_call=chat.last_message.content,
+                )
+            )

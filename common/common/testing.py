@@ -47,7 +47,11 @@ class CopilotResponse:
 
     @property
     def text(self) -> str:
-        return "".join(str(event.content) for event in self.events if event.event_type == "copilotMessage")
+        return "".join(
+            str(event.content)
+            for event in self.events
+            if event.event_type == "copilotMessage"
+        )
 
     def __iter__(self):
         return self
