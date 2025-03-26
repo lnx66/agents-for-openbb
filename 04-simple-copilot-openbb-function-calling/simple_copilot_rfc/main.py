@@ -17,7 +17,7 @@ from common import agent
 from common.models import (
     AgentQueryRequest,
 )
-from .prompts import SYSTEM_PROMPT_TEMPLATE, render_system_prompt
+from .prompts import render_system_prompt
 from .functions import get_widget_data
 
 
@@ -59,7 +59,7 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
     functions = [get_widget_data(widget_collection=request.widgets)]
 
     chat = Chat(
-        messages=agent.prepare_messages(
+        messages=await agent.process_messages(
             system_prompt=render_system_prompt(widget_collection=request.widgets),
             messages=request.messages,
             functions=functions,

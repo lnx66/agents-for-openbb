@@ -85,8 +85,8 @@ class LlmClientFunctionCallResult(BaseModel):
     data: list[DataContent | DataFileReference] = Field(
         description="The content of the function call."
     )
-    extra_state: dict[str, Any] | None = Field(
-        default=None,
+    extra_state: dict[str, Any] = Field(
+        default_factory=dict,
         description="Extra state to be passed between the client and this service.",
     )
 

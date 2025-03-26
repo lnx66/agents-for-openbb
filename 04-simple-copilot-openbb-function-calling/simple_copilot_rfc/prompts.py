@@ -20,18 +20,20 @@ You can use the following functions to help you answer the user's query:
 {widgets_prompt}
 """
 
+
 def _render_widget(widget: Widget) -> str:
-  widget_str = ""
-  widget_str += (
-      f"uuid: {widget.uuid} <-- use this to retrieve the data for the widget\n"
-  )
-  widget_str += f"name: {widget.name}\n"
-  widget_str += f"description: {widget.description}\n"
-  widget_str += f"parameters:\n"
-  for param in widget.params:
-      widget_str += f"  {param.name}={param.current_value}\n"
-  widget_str += "-------\n"
-  return widget_str
+    widget_str = ""
+    widget_str += (
+        f"uuid: {widget.uuid} <-- use this to retrieve the data for the widget\n"
+    )
+    widget_str += f"name: {widget.name}\n"
+    widget_str += f"description: {widget.description}\n"
+    widget_str += "parameters:\n"
+    for param in widget.params:
+        widget_str += f"  {param.name}={param.current_value}\n"
+    widget_str += "-------\n"
+    return widget_str
+
 
 def render_system_prompt(widget_collection: WidgetCollection) -> str:
     widgets_prompt = "# Available Widgets\n\n"
@@ -42,7 +44,7 @@ def render_system_prompt(widget_collection: WidgetCollection) -> str:
         widgets_prompt += _render_widget(widget)
 
     # `secondary` widgets are widgets that are on the currently-active dashboard, but
-    # have not been added to the custom agent explicitly by the user. 
+    # have not been added to the custom agent explicitly by the user.
     widgets_prompt += "\n## Secondary Widgets (use these widgets if the user's query is not answered by the primary widgets):\n\n"
     for widget in widget_collection.secondary:
         widgets_prompt += _render_widget(widget)
