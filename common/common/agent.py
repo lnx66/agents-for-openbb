@@ -1,9 +1,16 @@
+import functools
+import inspect
 import json
 from common.models import (
+    DataSourceRequest,
+    FunctionCallSSE,
+    FunctionCallSSEData,
     LlmClientFunctionCallResult,
+    LlmFunctionCall,
     LlmClientMessage,
     StatusUpdateSSE,
     StatusUpdateSSEData,
+    Widget,
 )
 from magentic import (
     AssistantMessage,
@@ -15,7 +22,7 @@ from magentic import (
     SystemMessage,
     UserMessage,
 )
-from typing import Any, AsyncGenerator, Literal
+from typing import Any, AsyncGenerator, Callable, Literal
 import re
 
 
@@ -46,18 +53,72 @@ def reasoning_step(
         )
     )
 
+def remote_function(
+    func: Callable,
+) -> Callable:
+
+    @functools.wraps(func)
+    async def wrapper(*args, **kwargs) -> AsyncGenerator[FunctionCallSSE | StatusUpdateSSE, None]:
+        signature = inspect.signature(func)
+        bound_args = signature.bind(*args, **kwargs).arguments
+
+        async for event in func(*args, **kwargs):
+            if isinstance(event, StatusUpdateSSE):
+                yield event
+            elif isinstance(event, DataSourceRequest):
+                yield FunctionCallSSE(
+                    data=FunctionCallSSEData(
+                        function="get_widget_data",
+                        input_arguments={
+                            "data_sources": [
+                                DataSourceRequest(
+                                    widget_uuid=event.widget_uuid,
+                                    origin=event.origin,
+                                    id=event.id,
+                                    input_args=event.input_args,
+                                )
+                            ]
+                        },
+                        extra_state={"copilot_function_call_arguments": {
+                            **bound_args,
+                        }},
+                    )
+                )
+                return
+            else:
+                yield event
+    return wrapper
+
+
+def remote_data_request(
+    widget: Widget,
+    input_arguments: dict[str, Any],
+) -> DataSourceRequest:
+    return DataSourceRequest(
+                widget_uuid=str(widget.uuid),
+                origin=widget.origin,
+                id=widget.widget_id,
+                input_args=input_arguments,
+            )
 
 def prepare_messages(
     system_prompt: str,
     messages: list[LlmClientFunctionCallResult | LlmClientMessage],
+    functions: list[Callable],
 ) -> list[AnyMessage]:
     chat_messages: list[AnyMessage] = [SystemMessage(system_prompt)]
     for message in messages:
         match message:
             case LlmClientMessage(role="human"):
                 chat_messages.append(UserMessage(content=message.content))
-            case LlmClientMessage(role="ai"):
+            case LlmClientMessage(role="ai") if isinstance(message.content, str):
                 chat_messages.append(AssistantMessage(content=message.content))
+            case LlmClientMessage(role="ai") if isinstance(message.content, LlmFunctionCall):
+                # Everything is handle in the function call result message.
+                pass
+            case LlmClientFunctionCallResult(role="tool"):
+                print("Test")
+
             case _:
                 raise ValueError(f"Unsupported message type: {message}")
     return chat_messages
@@ -83,6 +144,9 @@ async def run_agent(
                 # Yield reasoning steps.
                 if isinstance(event, StatusUpdateSSE):
                     yield event.model_dump()
+                if isinstance(event, FunctionCallSSE):
+                    yield event.model_dump()
+                    return
                 # Otherwise, append to the function call result.
                 else:
                     function_call_result += str(event)
