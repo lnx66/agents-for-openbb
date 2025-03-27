@@ -51,7 +51,9 @@ async def get_random_palettes(n: int = 1) -> AsyncGenerator[Any, None]:
             )
         responses = await asyncio.gather(*tasks)
         if all(response.status_code == 200 for response in responses):
-            logger.info(f"Retrieved the following palettes: {[response.json() for response in responses]}")
+            logger.info(
+                f"Retrieved the following palettes: {[response.json() for response in responses]}"
+            )
             response_str = "-- Palettes --\n"
             for response in responses:
                 payload = response.json()[0]
