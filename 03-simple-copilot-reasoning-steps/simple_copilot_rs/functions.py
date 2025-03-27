@@ -3,6 +3,9 @@ from common.agent import reasoning_step
 from pydantic import BaseModel
 import httpx
 import asyncio
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Colour(BaseModel):
@@ -44,10 +47,14 @@ async def get_random_palettes(n: int = 1) -> AsyncGenerator[Any, None]:
                     "https://www.colourlovers.com/api/palettes/random",
                     params={"format": "json"},
                     headers={"User-Agent": "OpenBB Example Copilot"},
+                    timeout=30,
                 )
             )
         responses = await asyncio.gather(*tasks)
         if all(response.status_code == 200 for response in responses):
+            logger.info(
+                f"Retrieved the following palettes: {[response.json() for response in responses]}"
+            )
             response_str = "-- Palettes --\n"
             for response in responses:
                 payload = response.json()[0]
