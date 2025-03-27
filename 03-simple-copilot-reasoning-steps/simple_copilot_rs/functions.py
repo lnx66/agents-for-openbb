@@ -47,6 +47,7 @@ async def get_random_palettes(n: int = 1) -> AsyncGenerator[Any, None]:
                     "https://www.colourlovers.com/api/palettes/random",
                     params={"format": "json"},
                     headers={"User-Agent": "OpenBB Example Copilot"},
+                    timeout=30,
                 )
             )
         responses = await asyncio.gather(*tasks)
