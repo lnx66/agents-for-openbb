@@ -21,7 +21,9 @@ def get_widget_data(widget_collection: WidgetCollection) -> Callable:
     # argument when the function is defined, and not when it is called by the
     # LLM (since we only want the LLM to specify the widget UUID of the widget
     # that it wants data for).
-    widgets = widget_collection.primary + widget_collection.secondary
+    primary_widgets = widget_collection.primary or []
+    secondary_widgets = widget_collection.secondary or []
+    widgets = primary_widgets + secondary_widgets
 
     @remote_function_call(
         function="get_widget_data", output_formatter=handle_widget_data
