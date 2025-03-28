@@ -35,18 +35,18 @@ def _render_widget(widget: Widget) -> str:
     return widget_str
 
 
-def render_system_prompt(widget_collection: WidgetCollection) -> str:
+def render_system_prompt(widget_collection: WidgetCollection | None = None) -> str:
     widgets_prompt = "# Available Widgets\n\n"
     # `primary` widgets are widgets that the user has manually selected
     # and added to the custom agent on OpenBB Workspace.
     widgets_prompt += "## Primary Widgets (prioritize using these widgets when answering the user's query):\n\n"
-    for widget in widget_collection.primary:
+    for widget in widget_collection.primary if widget_collection else []:
         widgets_prompt += _render_widget(widget)
 
     # `secondary` widgets are widgets that are on the currently-active dashboard, but
     # have not been added to the custom agent explicitly by the user.
     widgets_prompt += "\n## Secondary Widgets (use these widgets if the user's query is not answered by the primary widgets):\n\n"
-    for widget in widget_collection.secondary:
+    for widget in widget_collection.secondary if widget_collection else []:
         widgets_prompt += _render_widget(widget)
 
     return SYSTEM_PROMPT_TEMPLATE.format(widgets_prompt=widgets_prompt)
