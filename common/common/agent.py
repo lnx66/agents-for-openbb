@@ -140,7 +140,7 @@ def get_remote_data(
 async def process_messages(
     system_prompt: str,
     messages: list[LlmClientFunctionCallResult | LlmClientMessage],
-    functions: list[Any],
+    functions: list[Any] | None = None,
 ) -> list[AnyMessage]:
     chat_messages: list[AnyMessage] = [SystemMessage(system_prompt)]
     for message in messages:
@@ -155,6 +155,8 @@ async def process_messages(
                 # Everything is handle in the function call result message.
                 pass
             case LlmClientFunctionCallResult(role="tool"):
+                if not functions:
+                    continue
                 matching_local_functions = list(
                     filter(
                         lambda x: x.__name__
