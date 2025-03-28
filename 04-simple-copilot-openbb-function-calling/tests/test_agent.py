@@ -1,10 +1,9 @@
 import json
 from fastapi.testclient import TestClient
-from simple_copilot_rs.main import app
+from simple_copilot_rfc.main import app
 import pytest
 from pathlib import Path
 from common.testing import CopilotResponse, capture_stream_response
-from unittest.mock import MagicMock, patch
 
 test_client = TestClient(app)
 
@@ -55,44 +54,65 @@ def test_query_no_messages():
     "messages list cannot be empty" in response.text
 
 
-def test_query_local_function_call():
-    test_payload = {
-        "messages": [
+def test_query_returns_remote_function_call():
+    test_payload_path = (
+        Path(__file__).parent.parent.parent
+        / "test_payloads"
+        / "message_with_primary_widget.json"
+    )
+    test_payload = json.load(open(test_payload_path))
+
+    response = test_client.post("/v1/query", json=test_payload)
+    assert response.status_code == 200
+
+    (
+        CopilotResponse(response.text)
+        .starts("copilotStatusUpdate")
+        .with_("Retrieving data for widget: Company News...")
+        .then("copilotFunctionCall")
+        .with_({"function": "get_widget_data"})
+        .with_(
             {
-                "role": "human",
-                "content": "Fetch and describe a random colour palette.",
+                "input_arguments": {
+                    "data_sources": [
+                        {
+                            "widget_uuid": "123e4567-e89b-12d3-a456-426614174000",
+                            "origin": "openbb",
+                            "id": "company_news",
+                            "input_args": {"ticker": "AAPL"},
+                        }
+                    ]
+                }
             }
-        ]
-    }
-
-    mock_json_response = [
-        {
-            "id": 12345,
-            "title": "Mock Palette",
-            "colors": ["FF0000", "00FF00", "0000FF"],  # RGB colors without #
-            "url": "https://www.colourlovers.com/palette/12345/Mock_Palette",
-            "imageUrl": "https://www.colourlovers.com/paletteImg/12345/Mock_Palette.png",
-        }
-    ]
-
-    mock_response = MagicMock(name="mock_response")
-    mock_response.status_code = 200
-    mock_response.json.return_value = mock_json_response
-
-    with patch("simple_copilot_rs.functions.httpx.AsyncClient") as mock_client:
-        mock_client.return_value.__aenter__.return_value.get.return_value = (
-            mock_response
         )
-        response = test_client.post("/v1/query", json=test_payload)
-        assert response.status_code == 200
-
-        copilot_response = CopilotResponse(response.text)
-        assert (
-            copilot_response.starts_with("copilotStatusUpdate", "Fetching palettes...")
-            .then("copilotStatusUpdate", "Palettes fetched successfully.")
-            .then("copilotMessage", content_contains="Mock")
-            .and_("#FF0000")
-            .and_("#00FF00")
-            .and_("#0000FF")
-            .and_("colourlovers.com")
+        .with_(
+            {
+                "extra_state": {
+                    "copilot_function_call_arguments": {
+                        "widget_uuid": "123e4567-e89b-12d3-a456-426614174000"
+                    },
+                    "_locally_bound_function": "_get_widget_data",
+                }
+            }
         )
+    )
+
+
+def test_query_completes_remote_function_call():
+    test_payload_path = (
+        Path(__file__).parent.parent.parent
+        / "test_payloads"
+        / "message_with_primary_widget_and_tool_call.json"
+    )
+    test_payload = json.load(open(test_payload_path))
+
+    response = test_client.post("/v1/query", json=test_payload)
+    assert response.status_code == 200
+    copilot_response = CopilotResponse(response.text)
+    (
+        copilot_response.starts("copilotMessage")
+        .with_("Positive")
+        .with_("Negative")
+        .with_("Neutral")
+        .with_("Apple")
+    )

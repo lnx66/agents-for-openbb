@@ -87,7 +87,7 @@ def test_query_local_function_call():
         assert response.status_code == 200
 
         copilot_response = CopilotResponse(response.text)
-        assert (
+        (
             copilot_response.starts_with("copilotStatusUpdate", "Fetching palettes...")
             .then("copilotStatusUpdate", "Palettes fetched successfully.")
             .then("copilotMessage", content_contains="Mock")
