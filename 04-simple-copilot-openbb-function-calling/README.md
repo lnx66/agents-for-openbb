@@ -4,6 +4,9 @@ This is an example agent, powered by OpenAI, that can perform question
 answering and remote function calling to the OpenBB Workspace to retrieve widget
 data. It also demonstrates "reasoning steps" to the front end as it is executing.
 
+It does not support handling PDF files or images, but is able to process
+table widgets or text-based widgets.
+
 ## Understanding the role of the OpenBB Workspace for custom agents
 OpenBB Workspace is the front-end browser-based application for accessing
 and interacting with your data on OpenBB. This is the application that you interact
