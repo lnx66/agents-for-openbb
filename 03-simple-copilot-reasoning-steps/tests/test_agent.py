@@ -1,6 +1,6 @@
 import json
 from fastapi.testclient import TestClient
-from simple_copilot_fc.main import app
+from simple_copilot_rs.main import app
 import pytest
 from pathlib import Path
 from common.testing import CopilotResponse, capture_stream_response
@@ -79,7 +79,7 @@ def test_query_local_function_call():
     mock_response.status_code = 200
     mock_response.json.return_value = mock_json_response
 
-    with patch("simple_copilot_fc.functions.httpx.AsyncClient") as mock_client:
+    with patch("simple_copilot_rs.functions.httpx.AsyncClient") as mock_client:
         mock_client.return_value.__aenter__.return_value.get.return_value = (
             mock_response
         )
@@ -87,11 +87,15 @@ def test_query_local_function_call():
         assert response.status_code == 200
 
         copilot_response = CopilotResponse(response.text)
-        assert (
-            copilot_response.starts("copilotMessage")
+        (
+            copilot_response.starts("copilotStatusUpdate")
+            .with_("Fetching palettes...")
+            .then("copilotStatusUpdate")
+            .with_("Palettes fetched successfully.")
+            .then("copilotMessage")
             .with_("Mock")
-            .with_("#FF0000")
-            .with_("#00FF00")
-            .with_("#0000FF")
+            .with_("FF0000")
+            .with_("00FF00")
+            .with_("0000FF")
             .with_("colourlovers.com")
         )
