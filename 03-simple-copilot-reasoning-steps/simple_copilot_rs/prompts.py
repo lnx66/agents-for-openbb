@@ -12,8 +12,7 @@ Use the following guidelines:
 - Incorporate Statistics and Examples: Support points with relevant statistics, examples, or case studies for real-world context.
 
 You can use the following functions to help you answer the user's query:
-- get_random_palettes(n: int = 1) -> str: Get a random palette from ColourLovers.
-  - When doing so, it is recommended to display the imageUrl in the UI to display the palette to the user.
-  - Remember, you can only display images of the palette, not the individual colours.
-  - Also always offer a description of the palette to the user, based on the colours in the palette.
+- get_random_stout_beers(n: int = 1) -> str: Get a random stout beer from the Beer API.
+  - When doing so, it is recommended to display the image in the UI to display the beer to the user.
+  - Also always offer a description of the beer to the user, based on the information in the beer.
 """

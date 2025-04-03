@@ -7,7 +7,7 @@ the custom copilot itself).
 It does not support retrieving data from the OpenBB Workspace.
 
 For this particular local function calling example, we will implement a local function that fetches random
-colour palettes from the [ColourLover's API](https://www.colourlovers.com/).
+stout beers from the [Sample Beer API](https://sampleapis.com/api-list/beers).
 
 ## Architecture
 
@@ -18,7 +18,7 @@ colour palettes from the [ColourLover's API](https://www.colourlovers.com/).
 │                     │                │                 (Backend)                         │              │               │
 │                     │                │                                                   │              │               │
 │   OpenBB Workspace  │ ───────────>   │  ┌─────────────┐        ┌─────────────────┐       │              │  External API │
-│      (Frontend)     │     HTTP       │  │             │        │                 │       │              │  (ColourLover)│
+│      (Frontend)     │     HTTP       │  │             │        │                 │       │              │  (Beer API)   │
 │                     │    Request     │  │  LLM        │ ─────> │ Internal        │ ──────────────────>  │               │
 │                     │                │  │  Processing │        │ Function Call   │       │              │               │
 │                     │                │  │             │ <───── │ Execution       │ <─────────────────   │               │
