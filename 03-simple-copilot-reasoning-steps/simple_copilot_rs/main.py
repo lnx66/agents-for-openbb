@@ -18,7 +18,7 @@ from common.models import (
     AgentQueryRequest,
 )
 from .prompts import SYSTEM_PROMPT
-from .functions import get_random_palettes
+from .functions import get_random_stout_beers
 
 
 logging.basicConfig(level=logging.INFO)
@@ -59,7 +59,7 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
     chat = Chat(
         messages=await agent.process_messages(SYSTEM_PROMPT, request.messages),
         output_types=[AsyncStreamedStr, FunctionCall],
-        functions=[get_random_palettes],  # Add the function to the LLM.
+        functions=[get_random_stout_beers],  # Add the function to the LLM.
     )
 
     # This is the main execution loop for the Copilot.

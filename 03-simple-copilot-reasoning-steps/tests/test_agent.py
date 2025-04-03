@@ -60,7 +60,7 @@ def test_query_local_function_call():
         "messages": [
             {
                 "role": "human",
-                "content": "Fetch and describe a random colour palette.",
+                "content": "Fetch and describe a random stout beer.",
             }
         ]
     }
@@ -68,10 +68,10 @@ def test_query_local_function_call():
     mock_json_response = [
         {
             "id": 12345,
-            "title": "Mock Palette",
-            "colors": ["FF0000", "00FF00", "0000FF"],  # RGB colors without #
-            "url": "https://www.colourlovers.com/palette/12345/Mock_Palette",
-            "imageUrl": "https://www.colourlovers.com/paletteImg/12345/Mock_Palette.png",
+            "name": "Mock Beer",
+            "price": "$10.00",
+            "rating": {"average": 4.5, "reviews": 100},
+            "image": "https://example.com/mock-beer.png",
         }
     ]
 
@@ -89,13 +89,13 @@ def test_query_local_function_call():
         copilot_response = CopilotResponse(response.text)
         (
             copilot_response.starts("copilotStatusUpdate")
-            .with_("Fetching palettes...")
+            .with_("Fetching random stout beers...")
             .then("copilotStatusUpdate")
-            .with_("Palettes fetched successfully.")
+            .with_("Beers fetched successfully.")
             .then("copilotMessage")
             .with_("Mock")
-            .with_("FF0000")
-            .with_("00FF00")
-            .with_("0000FF")
-            .with_("colourlovers.com")
+            .with_("10.00")
+            .with_("4.5")
+            .with_("100")
+            .with_("https://example.com/mock-beer.png")
         )
