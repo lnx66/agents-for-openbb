@@ -10,7 +10,7 @@ and interacting with your data on OpenBB. This is the application that you inter
 with when using OpenBB.
 
 However, OpenBB Workspace also serves as the data layer for all agents that are
-added to your OpenBB Workspace. If confingured correctly, custom agents can use
+added to your OpenBB Workspace. If configured correctly, custom agents can use
 the OpenBB Workspace to retrieve data from widgets as part of their execution
 and query answering. 
 

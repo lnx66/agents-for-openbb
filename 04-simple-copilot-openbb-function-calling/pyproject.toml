@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "copilot-for-terminal-pro"
+name = "copilot-for-openbb"
 version = "0.1.0"
 description = ""
 authors = ["Michael Struwig <michael.struwig@openbb.finance>"]
