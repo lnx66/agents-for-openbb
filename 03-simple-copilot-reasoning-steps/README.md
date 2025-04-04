@@ -7,7 +7,7 @@ the custom copilot itself), as well as return "reasoning steps" to the front end
 It does not support retrieving data from the OpenBB Workspace.
 
 This example builds on the previous example copilot that implements local function calling that fetches random
-colour palettes from the [ColourLover's API](https://www.colourlovers.com/).
+stout beers from the [Sample Beer API](https://sampleapis.com/api-list/beers).
 
 ## Understanding reasoning steps
 OpenBB Workspace allows you to return "reasoning steps" (sometimes referred to as "thought steps" or even "status updates")
@@ -27,7 +27,7 @@ which then displays them.
 │                     │                │                 (Backend)                         │              │               │
 │                     │                │                                                   │              │               │
 │   OpenBB Workspace  │ ───────────>   │  ┌─────────────┐        ┌─────────────────┐       │              │  External API │
-│      (Frontend)     │     HTTP       │  │             │        │                 │       │              │  (ColourLover)│
+│      (Frontend)     │     HTTP       │  │             │        │                 │       │              │  (Beer API)   │
 │                     │    Request     │  │  LLM        │ ─────> │ Internal        │ ──────────────────>  │               │
 │                     │                │  │  Processing │        │ Function Call   │       │              │               │
 │                     │                │  │             │ <───── │ Execution       │ <─────────────────   │               │

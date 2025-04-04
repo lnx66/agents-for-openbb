@@ -1,66 +1,57 @@
+import random
 from typing import AsyncGenerator
 from pydantic import BaseModel
 import httpx
-import asyncio
 
 
-class Colour(BaseModel):
-    hex: str
+class Rating(BaseModel):
+    average: float
+    reviews: int
 
 
-class ColourPalette(BaseModel):
-    id: str
+class Beer(BaseModel):
+    id: int
+    price: str
     name: str
-    colours: list[Colour]
-    url: str
-    imageUrl: str
+    rating: Rating
+    image: str
 
 
-async def get_random_palettes(n: int = 1) -> AsyncGenerator[str, None]:
-    """Get a random palette from ColourLovers.
+async def get_random_stout_beers(n: int = 1) -> AsyncGenerator[str, None]:
+    """Get a random stout beer from the Beer API.
 
-    It is recommended to display the imageUrl in the UI
-    for the user so that they can see the palette.
+    It is recommended to display the image url in the UI
+    for the user so that they can see the beer.
 
     Parameters:
         n: int = 1
-            The number of palettes to return.
+            The number of beers to return.
             Maximum is 10.
 
 
     """
     async with httpx.AsyncClient() as client:
-        tasks = []
-        for _ in range(n):
-            tasks.append(
-                client.get(
-                    "https://www.colourlovers.com/api/palettes/random",
-                    params={"format": "json"},
-                    headers={"User-Agent": "OpenBB Example Copilot"},
-                )
+        response = await client.get(
+            "https://api.sampleapis.com/beers/stouts",
+            headers={"User-Agent": "OpenBB Example Copilot"},
+        )
+        if response.status_code != 200:
+            yield "Failed to fetch beers."
+            return
+
+        data = response.json()
+        random_sample = random.sample(data, n)
+        beers = [Beer(**beer) for beer in random_sample]
+
+        response_str = "-- Beers --\n"
+        for beer in beers:
+            response_str += f"name: {beer.name}\n"
+            response_str += f"price: {beer.price}\n"
+            response_str += f"rating: {beer.rating.average}\n"
+            response_str += f"reviews: {beer.rating.reviews}\n"
+            response_str += (
+                f"image (use this to display the beer image): {beer.image}\n"
             )
-        responses = await asyncio.gather(*tasks)
-
-        if all(response.status_code == 200 for response in responses):
-            response_str = "-- Palettes --\n"
-            for response in responses:
-                payload = response.json()[0]
-                colours = [Colour(hex=f"#{colour}") for colour in payload["colors"]]
-                palette = ColourPalette(
-                    id=str(payload["id"]),
-                    name=payload["title"],
-                    colours=colours,
-                    url=payload["url"],
-                    imageUrl=payload["imageUrl"],
-                )
-                # Let's format the response that the LLM will see
-                # as the result of the function call.
-                response_str += f"name: {palette.name}\n"
-                response_str += f"url: {palette.url}\n"
-                response_str += f"imageUrl (use this to display the palette image): {palette.imageUrl}\n"
-                response_str += f"colours: {[c.hex for c in palette.colours]}\n"
-                response_str += "-----------------------------------\n"
-            yield response_str
-
-        else:
-            yield "Failed to fetch palettes."
+            response_str += "-----------------------------------\n"
+        yield response_str
+        return
