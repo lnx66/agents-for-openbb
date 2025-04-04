@@ -1,6 +1,6 @@
 import json
 from fastapi.testclient import TestClient
-from simple_copilot_rfc.main import app
+from simple_copilot_deepseek.main import app
 import pytest
 from pathlib import Path
 from common.testing import capture_stream_response
