@@ -9,9 +9,7 @@ from fastapi.responses import JSONResponse
 from magentic import (
     AsyncStreamedStr,
     Chat,
-    FunctionCall,
 )
-from magentic.chat_model.litellm_chat_model import LitellmChatModel
 from magentic.chat_model.openai_chat_model import OpenaiChatModel
 from sse_starlette.sse import EventSourceResponse
 
@@ -70,7 +68,7 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
             base_url="https://openrouter.ai/api/v1",
             api_key=os.environ["OPENROUTER_API_KEY"],
             model="deepseek/deepseek-chat-v3-0324",
-        )
+        ),
     )
 
     # This is the main execution loop for the Copilot.
