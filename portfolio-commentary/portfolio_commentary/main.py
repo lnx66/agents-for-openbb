@@ -3,10 +3,10 @@ import logging
 import os
 from pathlib import Path
 import httpx
-from typing import AsyncGenerator, Any, Dict, List
+from typing import AsyncGenerator, Any, Dict, List, Callable
 import inspect
 import asyncio
-from common.agent import reasoning_step
+from common.agent import reasoning_step, remote_function_call, get_remote_data
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -30,7 +30,13 @@ from common.models import (
     AgentQueryRequest,
     StatusUpdateSSE,
     StatusUpdateSSEData,
+    DataContent,
+    FunctionCallSSE,
+    FunctionCallSSEData,
+    WidgetCollection,
+    Widget,
 )
+import uuid
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -209,17 +215,174 @@ def get_copilot_description():
         content=json.load(open((Path(__file__).parent.resolve() / "copilots.json")))
     )
 
+# Function to handle widget data response formatting
+async def handle_widget_data(data: list[DataContent]) -> str:
+    result_str = "--- Data ---\n"
+    for content in data:
+        result_str += f"{content.content}\n"
+        result_str += "------\n"
+    return result_str
+
+# Function to create the widget data retrieval function
+def get_widget_data(widget_collection: WidgetCollection) -> Callable:
+    # Combine primary and secondary widgets
+    widgets = (
+        widget_collection.primary + widget_collection.secondary
+        if widget_collection
+        else []
+    )
+
+    @remote_function_call(
+        function="get_widget_data", output_formatter=handle_widget_data
+    )
+    async def _get_widget_data(
+        widget_uuid: str,
+    ) -> AsyncGenerator[FunctionCallSSE | StatusUpdateSSE, None]:
+        """Retrieve data for a widget by specifying the widget UUID."""
+
+        # Find the widget that matches the UUID
+        matching_widgets = list(
+            filter(lambda widget: str(widget.uuid) == widget_uuid, widgets)
+        )
+        widget = matching_widgets[0] if matching_widgets else None
+
+        # If we can't find the widget, report an error
+        if not widget:
+            yield reasoning_step(
+                event_type="ERROR",
+                message="Unable to retrieve data for widget (does not exist)",
+                details={"widget_uuid": widget_uuid},
+            )
+            yield f"Unable to retrieve data for widget with UUID: {widget_uuid} (it is not present on the dashboard)"
+            return
+
+        # Let the user know we're retrieving data
+        yield reasoning_step(
+            event_type="INFO",
+            message=f"Retrieving data for widget: {widget.name}...",
+            details={"widget_uuid": widget_uuid},
+        )
+
+        # Request the widget data
+        yield get_remote_data(
+            widget=widget,
+            # Use the current values of widget parameters
+            input_arguments={
+                param.name: param.current_value for param in widget.params
+            },
+        )
+
+    return _get_widget_data
+
+# Generate a system prompt that includes widget information
+def render_system_prompt(widget_collection: WidgetCollection | None = None) -> str:
+    from .prompts import SYSTEM_PROMPT  # Import the base system prompt
+    
+    widgets_prompt = "# Available Widgets\n\n"
+    
+    # Primary widgets section
+    widgets_prompt += "## Primary Widgets (prioritize using these):\n\n"
+    for widget in widget_collection.primary if widget_collection else []:
+        widgets_prompt += _render_widget(widget)
+
+    # Secondary widgets section
+    widgets_prompt += "\n## Secondary Widgets:\n\n"
+    for widget in widget_collection.secondary if widget_collection else []:
+        widgets_prompt += _render_widget(widget)
+
+    # Append widget information to system prompt
+    complete_prompt = f"{SYSTEM_PROMPT}\n\nYou can use the following functions to help you answer the user's query:\n"
+    complete_prompt += "- get_widget_data(widget_uuid: str) -> str: Get the data for a widget by specifying its UUID.\n\n"
+    complete_prompt += widgets_prompt
+    
+    return complete_prompt
+
+# Helper function to format widget information
+def _render_widget(widget: Widget) -> str:
+    widget_str = ""
+    widget_str += f"uuid: {widget.uuid} <-- use this to retrieve the data for the widget\n"
+    widget_str += f"name: {widget.name}\n"
+    widget_str += f"description: {widget.description}\n"
+    widget_str += "parameters:\n"
+    for param in widget.params:
+        widget_str += f"  {param.name}={param.current_value}\n"
+    widget_str += "-------\n"
+    return widget_str
+
 @app.post("/v1/query")
 async def query(request: AgentQueryRequest) -> EventSourceResponse:
     """Query the Copilot."""
     
+    # Custom function to process messages that handles the widget response data properly
+    async def custom_process_messages(messages, system_prompt, functions):
+        chat_messages = [SystemMessage(system_prompt)]
+        
+        for message in messages:
+            if hasattr(message, 'role'):
+                if message.role == "human" and hasattr(message, 'content'):
+                    chat_messages.append(UserMessage(content=message.content))
+                elif message.role == "ai" and hasattr(message, 'content'):
+                    if isinstance(message.content, str):
+                        chat_messages.append(AssistantMessage(content=message.content))
+                    else:
+                        # Just skip function call messages, as they'll be handled by the result
+                        pass
+                elif message.role == "tool" and message.function == "get_widget_data":
+                    # For get_widget_data results, we'll format them directly
+                    result_str = "--- Widget Data ---\n"
+                    for content in message.data:
+                        result_str += f"{content.content}\n"
+                        result_str += "------\n"
+                    
+                    # Add a user message with the widget data
+                    chat_messages.append(UserMessage(content=f"Widget data retrieved: \n{result_str}"))
+        
+        return chat_messages
+    
     # Simple, direct approach without complex streaming logic
     async def direct_response():
         try:
-            # Process the messages
-            processed_messages = await agent.process_messages(
-                system_prompt=SYSTEM_PROMPT,
+            # Create the get_widget_data function if widgets are available
+            functions = []
+            if request.widgets:
+                functions.append(get_widget_data(widget_collection=request.widgets))
+            
+            # Get appropriate system prompt with widget information
+            system_prompt = render_system_prompt(widget_collection=request.widgets) if request.widgets else SYSTEM_PROMPT
+            
+            # Check if this is a response to a previous function call
+            previous_function_call = None
+            function_call_result = None
+            
+            for message in request.messages:
+                # Check if there's a previous function call from the AI
+                if hasattr(message, 'role') and message.role == "ai" and hasattr(message, 'content'):
+                    if not isinstance(message.content, str):
+                        # This could be a function call
+                        if hasattr(message.content, 'function') and message.content.function == "get_widget_data":
+                            previous_function_call = message
+                    # Also check if it's a string that might be JSON
+                    elif isinstance(message.content, str):
+                        try:
+                            content_obj = json.loads(message.content)
+                            if isinstance(content_obj, dict) and content_obj.get("function") == "get_widget_data":
+                                previous_function_call = message
+                        except (json.JSONDecodeError, TypeError):
+                            pass
+                
+                # Check if there's a function call result from a tool
+                if hasattr(message, 'role') and message.role == "tool" and hasattr(message, 'function'):
+                    if message.function == "get_widget_data":
+                        function_call_result = message
+            
+            logger.info(f"Previous function call: {previous_function_call}")
+            logger.info(f"Function call result: {function_call_result}")
+            
+            # Use our custom processor instead of the standard one
+            processed_messages = await custom_process_messages(
                 messages=request.messages,
+                system_prompt=system_prompt,
+                functions=functions
             )
             
             # Format messages for OpenAI API
@@ -231,8 +394,37 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
                     formatted_messages.append({"role": "user", "content": msg.content})
                 elif isinstance(msg, AssistantMessage) and isinstance(msg.content, str):
                     formatted_messages.append({"role": "assistant", "content": msg.content})
+                elif isinstance(msg, AssistantMessage) and isinstance(msg.content, FunctionCall):
+                    # Handle function calls in the AssistantMessage
+                    if msg.content.function.__name__ == "_get_widget_data":
+                        widget_uuid = msg.content.kwargs.get("widget_uuid", "")
+                        formatted_messages.append({
+                            "role": "assistant",
+                            "content": None,
+                            "tool_calls": [{
+                                "id": str(uuid.uuid4()),
+                                "type": "function",
+                                "function": {
+                                    "name": "get_widget_data",
+                                    "arguments": json.dumps({"widget_uuid": widget_uuid})
+                                }
+                            }]
+                        })
+                elif isinstance(msg, FunctionResultMessage):
+                    # Add the result of a function call
+                    if hasattr(msg.function_call, "function") and msg.function_call.function.__name__ == "_get_widget_data":
+                        formatted_messages.append({
+                            "role": "tool",
+                            "tool_call_id": next(
+                                (call.get("id") for msg_idx, msg_val in enumerate(formatted_messages) 
+                                 for call in msg_val.get("tool_calls", []) 
+                                 if msg_val.get("role") == "assistant" and call.get("function", {}).get("name") == "get_widget_data"),
+                                str(uuid.uuid4())
+                            ),
+                            "content": msg.content
+                        })
             
-            # Create tools definition for web search
+            # Create tools definition for web search and widget data retrieval
             tools = [
                 {
                     "type": "function",
@@ -252,6 +444,26 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
                     }
                 }
             ]
+            
+            # Add get_widget_data tool if widgets are available
+            if request.widgets:
+                tools.append({
+                    "type": "function",
+                    "function": {
+                        "name": "get_widget_data",
+                        "description": "Retrieve data for a widget by specifying the widget UUID.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "widget_uuid": {
+                                    "type": "string",
+                                    "description": "The UUID of the widget to retrieve data from."
+                                }
+                            },
+                            "required": ["widget_uuid"]
+                        }
+                    }
+                })
             
             # Get API key
             api_key = os.environ.get("OPENROUTER_API_KEY")
@@ -442,6 +654,86 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
                                     details={"error": str(e)}
                                 ).model_dump()
                                 yield {"event": "error", "data": json.dumps({"message": f"Error with web search: {str(e)}"})}
+                                return
+                        
+                        # Handle widget data retrieval if it's a get_widget_data tool call
+                        elif tool_call["function"]["name"] == "get_widget_data":
+                            try:
+                                # Extract widget UUID
+                                args = json.loads(tool_call["function"]["arguments"])
+                                widget_uuid = args.get("widget_uuid", "")
+                                logger.info(f"Retrieving data for widget UUID: {widget_uuid}")
+                                
+                                # Find the requested widget
+                                if not request.widgets:
+                                    yield reasoning_step(
+                                        event_type="ERROR",
+                                        message="No widgets available to retrieve data from.",
+                                        details={"widget_uuid": widget_uuid}
+                                    ).model_dump()
+                                    yield {"event": "error", "data": json.dumps({"message": "No widgets available"})}
+                                    return
+                                    
+                                all_widgets = []
+                                if request.widgets.primary:
+                                    all_widgets.extend(request.widgets.primary)
+                                if request.widgets.secondary:
+                                    all_widgets.extend(request.widgets.secondary)
+                                    
+                                matching_widgets = list(
+                                    filter(lambda widget: str(widget.uuid) == widget_uuid, all_widgets)
+                                )
+                                widget = matching_widgets[0] if matching_widgets else None
+                                
+                                if not widget:
+                                    yield reasoning_step(
+                                        event_type="ERROR",
+                                        message=f"Widget with UUID {widget_uuid} not found",
+                                        details={"widget_uuid": widget_uuid}
+                                    ).model_dump()
+                                    yield {"event": "error", "data": json.dumps({"message": f"Widget with UUID {widget_uuid} not found"})}
+                                    return
+                                
+                                # Inform user we're retrieving widget data
+                                yield reasoning_step(
+                                    event_type="INFO",
+                                    message=f"Retrieving data for widget: {widget.name}",
+                                    details={"widget_uuid": widget_uuid, "widget_name": widget.name}
+                                ).model_dump()
+                                
+                                # Create a FunctionCallSSE object to request the data from the frontend
+                                widget_data_request = FunctionCallSSE(
+                                    event="copilotFunctionCall",
+                                    data=FunctionCallSSEData(
+                                        function="get_widget_data",
+                                        input_arguments={
+                                            "data_sources": [{
+                                                "origin": widget.origin,
+                                                "id": widget.widget_id,
+                                                "input_args": {
+                                                    param.name: param.current_value for param in widget.params
+                                                }
+                                            }]
+                                        },
+                                        extra_state={
+                                            "copilot_function_call_arguments": {
+                                                "widget_uuid": widget_uuid
+                                            }
+                                        }
+                                    )
+                                )
+                                
+                                yield widget_data_request.model_dump()
+                                return  # Must return here to allow the frontend to handle the request
+                                
+                            except Exception as e:
+                                logger.error(f"Error processing widget data request: {str(e)}", exc_info=True)
+                                yield reasoning_step(
+                                    event_type="ERROR",
+                                    message="Error occurred while retrieving widget data.",
+                                    details={"error": str(e)}
+                                ).model_dump()
+                                yield {"event": "error", "data": json.dumps({"message": f"Error with widget data: {str(e)}"})}
                                 return
                 
                 # No tool calls detected, just stream the normal response
