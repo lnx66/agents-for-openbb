@@ -2,7 +2,7 @@
 	"simple_copilot": {
 		"name": "Portfolio Commentary",
 		"description": "A powerful AI assistant powered by DeepSeek that analyzes your portfolio data and provides insightful commentary. It can access your financial widgets, interpret market trends, and incorporate the latest news and information from the web through Perplexity to deliver comprehensive portfolio insights.",
-		"image": "https://github-production-user-asset-6210df.s3.amazonaws.com/25267873/430676110-3295e16f-ccf3-481a-aa23-ffb9521986d7.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVCODYLSA53PQK4ZA%2F20250406%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20250406T034843Z&X-Amz-Expires=300&X-Amz-Signature=956ceb1141208a7161a2e4c370abb90a852eb535484b0fd07150fb0e473805de&X-Amz-SignedHeaders=host",
+		"image": "https://raw.githubusercontent.com/OpenBB-finance/copilot-for-openbb/port-commentary/portfolio-commentary/portfolio_commentary/copilot_img.png",
 		"endpoints": {
 			"query": "http://localhost:7777/v1/query"
 		},
