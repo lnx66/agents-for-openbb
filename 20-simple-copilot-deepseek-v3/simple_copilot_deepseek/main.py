@@ -6,7 +6,7 @@ import httpx
 from typing import AsyncGenerator, Any, Dict, List
 import inspect
 import asyncio
-
+from common.agent import reasoning_step
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -147,11 +147,11 @@ async def custom_run_agent(chat: Chat, max_completions: int = 10) -> AsyncGenera
                         query = "Unable to determine query"
                     
                     # First, yield an info message that we're searching
-                    yield {"event": "statusUpdate", "data": json.dumps({
-                        "eventType": "INFO",
-                        "message": f"Searching the web for: {query}",
-                        "details": []
-                    })}
+                    yield reasoning_step(
+                        event_type="INFO",
+                        message=f"Searching the web for: {query}",
+                        details=[]
+                    ).model_dump()
                     
                     # Call the function directly
                     result = await perplexity_web_search(query)
@@ -256,6 +256,11 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
             # Get API key
             api_key = os.environ.get("OPENROUTER_API_KEY")
             if not api_key:
+                yield reasoning_step(
+                    event_type="ERROR",
+                    message="Missing API key for web search capabilities.",
+                    details={"error": "OPENROUTER_API_KEY not set"}
+                ).model_dump()
                 yield {"event": "error", "data": json.dumps({"message": "OPENROUTER_API_KEY not set"})}
                 return
                 
@@ -267,6 +272,12 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
                 "X-Title": "OpenBB Terminal Pro",
             }
             
+            # Making initial LLM request
+            yield reasoning_step(
+                event_type="INFO",
+                message="Analyzing your query and determining the best approach..."
+            ).model_dump()
+            
             # Start with non-streaming call to detect tool calls
             data = {
                 "model": "deepseek/deepseek-chat-v3-0324",
@@ -276,16 +287,58 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
                 "tool_choice": "auto"
             }
             
-            logger.info("Making initial request to detect tool calls")
+            logger.info(f"Making initial request to detect tool calls with messages: {formatted_messages}")
             async with httpx.AsyncClient() as client:
                 response = await client.post(url, headers=headers, json=data)
                 response.raise_for_status()
                 result = response.json()
+                logger.info(f"Initial response: {result}")
                 
                 # Check for tool calls
                 choices = result.get("choices", [])
-                if choices and "tool_calls" in choices[0].get("message", {}):
-                    tool_calls = choices[0]["message"]["tool_calls"]
+                finish_reason = choices[0].get("finish_reason") if choices else None
+                
+                # Check if there are tool calls indicated by finish_reason
+                if choices and (finish_reason == "tool_calls" or "tool_calls" in choices[0].get("message", {})):
+                    # If finish_reason is tool_calls but no tool_calls in message,
+                    # we need to make another request to get the tool call information
+                    yield reasoning_step(
+                        event_type="INFO",
+                        message="I need to search for information to answer your question properly."
+                    ).model_dump()
+                    
+                    if finish_reason == "tool_calls" and "tool_calls" not in choices[0].get("message", {}):
+                        # Request with stream=False and respond_to_tool_calls=true to get tool calls
+                        tool_data = {
+                            "model": "deepseek/deepseek-chat-v3-0324",
+                            "messages": formatted_messages,
+                            "stream": False,
+                            "tools": tools,
+                            "tool_choice": "auto"
+                        }
+                        logger.info("Making follow-up request to get tool call details")
+                        tool_response = await client.post(url, headers=headers, json=tool_data)
+                        tool_response.raise_for_status()
+                        tool_result = tool_response.json()
+                        logger.info(f"Tool call response: {tool_result}")
+                        
+                        if "tool_calls" in tool_result.get("choices", [{}])[0].get("message", {}):
+                            tool_calls = tool_result["choices"][0]["message"]["tool_calls"]
+                            logger.info(f"Tool calls detected: {tool_calls}")
+                            
+                            yield reasoning_step(
+                                event_type="INFO",
+                                message="Found relevant information sources to check."
+                            ).model_dump()
+                        else:
+                            logger.warning("Couldn't retrieve tool calls even after follow-up request")
+                            # Fall back to regular content streaming
+                            yield {"event": "copilotMessageChunk", "data": json.dumps({"delta": "I couldn't retrieve the information you requested. Please try asking your question differently."})}
+                            yield {"event": "copilotMessageChunk", "data": json.dumps({"delta": ""})}
+                            return
+                    else:
+                        tool_calls = choices[0]["message"]["tool_calls"]
+                        logger.info(f"Tool calls detected: {tool_calls}")
                     
                     # Process each tool call
                     for tool_call in tool_calls:
@@ -294,16 +347,29 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
                                 # Extract query
                                 args = json.loads(tool_call["function"]["arguments"])
                                 query = args.get("query", "")
+                                logger.info(f"Extracted query: {query}")
                                 
                                 # Inform user we're searching
-                                yield {"event": "statusUpdate", "data": json.dumps({
-                                    "eventType": "INFO",
-                                    "message": f"Searching the web for: {query}",
-                                    "details": []
-                                })}
+                                yield reasoning_step(
+                                    event_type="INFO",
+                                    message=f"Searching the web for: {query}",
+                                    details={"search_query": query}
+                                ).model_dump()
                                 
                                 # Call perplexity
+                                yield reasoning_step(
+                                    event_type="INFO",
+                                    message="Connecting to search service and retrieving results..."
+                                ).model_dump()
+                                
                                 search_result = await perplexity_web_search(query)
+                                logger.info(f"Search result: {search_result[:100]}...")
+                                
+                                yield reasoning_step(
+                                    event_type="INFO",
+                                    message="Search completed successfully, processing results.",
+                                    details={"result_length": len(search_result)}
+                                ).model_dump()
                                 
                                 # Add result to messages
                                 new_messages = formatted_messages.copy()
@@ -311,12 +377,12 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
                                     "role": "assistant",
                                     "content": None,
                                     "tool_calls": [{
+                                        "id": tool_call["id"],
                                         "type": "function",
                                         "function": {
                                             "name": "perplexity_web_search",
                                             "arguments": json.dumps({"query": query})
-                                        },
-                                        "id": tool_call["id"]
+                                        }
                                     }]
                                 })
                                 new_messages.append({
@@ -332,11 +398,17 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
                                     "stream": True,
                                 }
                                 
-                                logger.info("Making final streaming request with search results")
+                                yield reasoning_step(
+                                    event_type="INFO",
+                                    message="Retrieved information from the web, now formulating a response."
+                                ).model_dump()
+                                
+                                logger.info(f"Making final streaming request with messages: {new_messages}")
                                 async with client.stream("POST", url, headers=headers, json=final_data) as stream_response:
                                     stream_response.raise_for_status()
+                                    
                                     async for line in stream_response.aiter_lines():
-                                        if not line.startswith("data: "):
+                                        if not line or not line.startswith("data: "):
                                             continue
                                             
                                         line = line[6:].strip()
@@ -346,38 +418,69 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
                                         try:
                                             chunk = json.loads(line)
                                             content = chunk.get("choices", [{}])[0].get("delta", {}).get("content")
-                                            if content:
+                                            
+                                            if content:  # Simplified check, empty strings are falsy
                                                 yield {"event": "copilotMessageChunk", "data": json.dumps({"delta": content})}
-                                        except json.JSONDecodeError:
+                                        except json.JSONDecodeError as e:
+                                            logger.error(f"JSON decode error: {e} for line: {line}")
+                                            yield reasoning_step(
+                                                event_type="WARNING",
+                                                message="Encountered an issue processing part of the response.",
+                                                details={"error_type": "JSON decode error"}
+                                            ).model_dump()
                                             continue
                                 
                                 # Signal end of response
                                 yield {"event": "copilotMessageChunk", "data": json.dumps({"delta": ""})}
+                                return  # Important to return here to prevent falling through
                                 
                             except Exception as e:
                                 logger.error(f"Error processing web search: {str(e)}", exc_info=True)
+                                yield reasoning_step(
+                                    event_type="ERROR",
+                                    message="Error occurred while searching the web.",
+                                    details={"error": str(e)}
+                                ).model_dump()
                                 yield {"event": "error", "data": json.dumps({"message": f"Error with web search: {str(e)}"})}
                                 return
-                    
+                
                 # No tool calls detected, just stream the normal response
-                else:
-                    # Extract the assistant's message and stream it chunk by chunk
-                    content = ""
-                    if choices:
-                        content = choices[0].get("message", {}).get("content", "")
+                content = ""
+                if choices:
+                    content = choices[0].get("message", {}).get("content", "")
+                    logger.info(f"No tool calls, streaming regular content: {content[:100]}...")
                     
-                    # Stream the content in small chunks to simulate streaming
-                    chunk_size = 6  # Small chunks for smooth streaming
-                    for i in range(0, len(content), chunk_size):
-                        chunk = content[i:i+chunk_size]
-                        yield {"event": "copilotMessageChunk", "data": json.dumps({"delta": chunk})}
-                        await asyncio.sleep(0.01)  # Small delay for smooth streaming
-                        
-                    # Signal end of response
-                    yield {"event": "copilotMessageChunk", "data": json.dumps({"delta": ""})}
+                    yield reasoning_step(
+                        event_type="INFO",
+                        message="Found the answer directly without needing to search external sources."
+                    ).model_dump()
+                
+                # Stream the content in small chunks to simulate streaming
+                if not content:
+                    logger.warning("No content to stream in the response")
+                    yield reasoning_step(
+                        event_type="WARNING",
+                        message="The model didn't generate any content for your query."
+                    ).model_dump()
+                    yield {"event": "error", "data": json.dumps({"message": "No content received from model"})}
+                    return
+                    
+                # Stream in larger chunks for better performance
+                chunk_size = 500  # Larger chunks for faster streaming
+                for i in range(0, len(content), chunk_size):
+                    chunk = content[i:i+chunk_size]
+                    yield {"event": "copilotMessageChunk", "data": json.dumps({"delta": chunk})}
+                    
+                # Signal end of response
+                yield {"event": "copilotMessageChunk", "data": json.dumps({"delta": ""})}
                 
         except Exception as e:
             logger.error(f"Error in direct_response: {str(e)}", exc_info=True)
+            yield reasoning_step(
+                event_type="ERROR",
+                message="Encountered an unexpected error while processing your request.",
+                details={"error": str(e)}
+            ).model_dump()
             yield {"event": "error", "data": json.dumps({"message": str(e)})}
     
     # Use our simpler direct approach
