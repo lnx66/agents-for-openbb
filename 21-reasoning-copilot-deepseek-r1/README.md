@@ -1,6 +1,10 @@
-# Simple DeepSeek-v3-0324 Copilot
+# Simple Reasoning DeepSeek-R1 Copilot
 
-This is an example agent, powered by [DeepSeek-v3-0324](https://huggingface.co/deepseek-ai/DeepSeek-V3-0324) (via OpenRouter), that can perform question answering.
+This is an example agent, powered by [DeepSeek-R1](https://huggingface.co/deepseek-ai/DeepSeek-R1) (via OpenRouter) and the OpenAI Python SDK, that can utilize reasoning to perform question answering.
+
+We make use of the reasoning steps functionality of OpenBB to return the
+reasoning to the frontend. To see how this functionality works (and how to use
+it yourself), take a look at [this example agent](https://github.com/OpenBB-finance/copilot-for-openbb/tree/main/03-simple-copilot-reasoning-steps).
 
 ## Architecture
 
@@ -27,8 +31,8 @@ endpoint as defined in the copilot.json schema.
 ## Overview
 
 This implementation utilizes a FastAPI application to serve as the backend for
-the copilot. The core functionality is powered by `magentic`, a robust, minimal
-framework for working with Large Language Models (LLMs).
+the copilot. The core functionality is powered by the official OpenAI Python
+SDK.
 
 You're not limited to our setup! If you have preferences for different APIs or
 LLM frameworks, feel free to adapt this implementation. The key is to adhere to
@@ -64,7 +68,7 @@ poetry install --no-root
 4.Start the API server:
 
 ``` sh
-poetry run uvicorn simple_copilot_deepseek.main:app --port 7777 --reload
+poetry run uvicorn reasoning_copilot_deepseek.main:app --port 7777 --reload
 ```
 
 This command runs the FastAPI application, making it accessible on your network.
