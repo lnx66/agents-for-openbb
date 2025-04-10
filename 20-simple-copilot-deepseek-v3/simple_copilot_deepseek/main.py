@@ -57,7 +57,7 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
     """Query the Copilot."""
 
     chat = Chat(
-        messages=await agent._process_messages_magentic(
+        messages=await agent.process_messages(
             system_prompt=SYSTEM_PROMPT,
             messages=request.messages,
         ),

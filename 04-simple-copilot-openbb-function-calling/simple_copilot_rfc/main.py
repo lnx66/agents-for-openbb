@@ -59,7 +59,7 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
     functions = [get_widget_data(widget_collection=request.widgets)]
 
     chat = Chat(
-        messages=await agent._process_messages_magentic(
+        messages=await agent.process_messages(
             system_prompt=render_system_prompt(widget_collection=request.widgets),
             messages=request.messages,
             functions=functions,
