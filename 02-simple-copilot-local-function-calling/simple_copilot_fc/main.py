@@ -57,9 +57,7 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
     """Query the Copilot."""
 
     chat = Chat(
-        messages=await agent.process_messages(
-            SYSTEM_PROMPT, request.messages
-        ),
+        messages=await agent.process_messages(SYSTEM_PROMPT, request.messages),
         output_types=[AsyncStreamedStr, FunctionCall],
         functions=[get_random_stout_beers],  # Add the function to the LLM.
     )
