@@ -1,24 +1,20 @@
 import json
 import logging
+import os
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from magentic import (
-    AsyncStreamedStr,
-    Chat,
-    FunctionCall,
-)
 from sse_starlette.sse import EventSourceResponse
+
+from .prompts import SYSTEM_PROMPT
 
 from dotenv import load_dotenv
 from common import agent
 from common.models import (
     AgentQueryRequest,
 )
-from .prompts import render_system_prompt
-from .functions import get_widget_data
 
 
 logging.basicConfig(level=logging.INFO)
@@ -56,25 +52,21 @@ def get_copilot_description():
 async def query(request: AgentQueryRequest) -> EventSourceResponse:
     """Query the Copilot."""
 
-    functions = [get_widget_data(widget_collection=request.widgets)]
-
-    chat = Chat(
-        messages=await agent._process_messages_magentic(
-            system_prompt=render_system_prompt(widget_collection=request.widgets),
-            messages=request.messages,
-            functions=functions,
-        ),
-        output_types=[AsyncStreamedStr, FunctionCall],
-        functions=functions,
-    )
-
     # This is the main execution loop for the Copilot.
-    async def execution_loop(chat: Chat):
-        async for event in agent.run_agent(chat=chat):
+    async def execution_loop():
+        async for event in agent.run_openrouter_agent(
+            messages=await agent.process_messages(
+                system_prompt=SYSTEM_PROMPT,
+                messages=request.messages,
+                kind="openai",
+            ),
+            model="deepseek/deepseek-r1",
+            api_key=os.environ["OPENROUTER_API_KEY"],
+        ):
             yield event
 
     # Stream the SSEs back to the client.
     return EventSourceResponse(
-        content=execution_loop(chat),
+        content=execution_loop(),
         media_type="text/event-stream",
     )
