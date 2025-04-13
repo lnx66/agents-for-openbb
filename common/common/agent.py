@@ -187,14 +187,8 @@ def get_wrapped_function(function_name: str, functions: list[Any]) -> Callable:
 async def process_messages(
     system_prompt: str,
     messages: list[LlmClientFunctionCallResult | LlmClientMessage],
-    functions: list[Any] | None = None,
-    kind: Literal["magentic", "openai"] = "magentic",
 ) -> list[AnyMessage] | list[ChatCompletionMessageParam]:
-    if kind == "openai":
-        return await _process_messages_openai(system_prompt, messages)
-
-    raise ValueError(f"Unsupported kind: {kind}")
-
+    return await _process_messages_openai(system_prompt, messages)
 
 async def _process_messages_openai(
     system_prompt: str,
@@ -246,9 +240,7 @@ class OpenBBAgent:
             output_types=[AsyncStreamedStr, FunctionCall],
             functions=self.functions if self.functions else None,
         )
-        async for event in self._execute(
-            chat=self._chat, max_completions=max_completions
-        ):
+        async for event in self._execute(max_completions=max_completions):
             yield event
 
         if self._citations.citations:
@@ -316,14 +308,12 @@ class OpenBBAgent:
                     raise ValueError(f"Unsupported message type: {message}")
         return chat_messages
 
-    async def _execute(
-        self, chat: Chat, max_completions: int
-    ) -> AsyncGenerator[dict, None]:
+    async def _execute(self, max_completions: int) -> AsyncGenerator[dict, None]:
         completion_count = 0
         # We set a limit to avoid infinite loops.
         while completion_count < max_completions:
             completion_count += 1
-            self._chat = await chat.asubmit()
+            self._chat = await cast(Chat, self._chat).asubmit()
             # Handle a streamed text response.
             if isinstance(self._chat.last_message.content, AsyncStreamedStr):
                 async for event in create_message_stream(
@@ -344,7 +334,7 @@ class OpenBBAgent:
                     if isinstance(event, StatusUpdateSSE):
                         yield event.model_dump()
                     # Or an SSE to execute a function on the client-side.
-                    if isinstance(event, FunctionCallSSE):
+                    elif isinstance(event, FunctionCallSSE):
                         yield event.model_dump()
                         return
                     # Otherwise, append to the function call result.

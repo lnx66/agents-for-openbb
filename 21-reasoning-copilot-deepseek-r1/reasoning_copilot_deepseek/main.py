@@ -58,7 +58,6 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
             messages=await agent.process_messages(
                 system_prompt=SYSTEM_PROMPT,
                 messages=request.messages,
-                kind="openai",
             ),
             model="deepseek/deepseek-r1",
             api_key=os.environ["OPENROUTER_API_KEY"],

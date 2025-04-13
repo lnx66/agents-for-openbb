@@ -73,7 +73,11 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
 
     # This is the main execution loop for the Copilot.
     async def execution_loop(chat: Chat):
-        async for event in agent.run_agent(chat=chat):
+        async for event in agent.run_openrouter_agent(
+            messages=request.messages,
+            model="deepseek/deepseek-chat-v3-0324",
+            api_key=os.environ["OPENROUTER_API_KEY"],
+        ):
             yield event
 
     # Stream the SSEs back to the client.
