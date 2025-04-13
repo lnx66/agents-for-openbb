@@ -32,7 +32,7 @@
                 "copilot_function_call_arguments": {
                     "widget_uuid": "123e4567-e89b-12d3-a456-426614174000"
                 },
-                "_locally_bound_function": "_get_widget_data"
+                "_locally_bound_function": "get_widget_data"
             }
         }
     ],

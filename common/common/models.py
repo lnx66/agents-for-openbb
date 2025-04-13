@@ -6,10 +6,26 @@ from pydantic import (
     HttpUrl,
     field_validator,
     model_validator,
+    computed_field,
 )
 from enum import Enum
 import json
 import uuid
+
+EXCLUDE_CITATION_DETAILS_FIELDS = [
+    "lastupdated",
+    "source",
+    "id",
+    "uuid",
+    "storedfileuuid",
+    "url",
+    "datakey",
+    "originalfilename",
+    "extension",
+    "category",
+    "subcategory",
+    "transcript_url",
+]
 
 
 class RoleEnum(str, Enum):
@@ -294,3 +310,96 @@ class StatusUpdateSSEData(BaseModel):
 class StatusUpdateSSE(BaseSSE):
     event: Literal["copilotStatusUpdate"] = "copilotStatusUpdate"
     data: StatusUpdateSSEData
+
+
+class SourceInfo(BaseModel):
+    type: Literal["widget", "direct retrieval", "web", "artifact"]
+    uuid: UUID | None = Field(default=None)
+    origin: str | None = Field(default=None)
+    widget_id: str | None = Field(default=None)
+    name: str | None = Field(default=None)
+    description: str | None = Field(default=None)
+    metadata: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Additional metadata (eg. the selected ticker, endpoint used, etc.).",  # noqa: E501
+    )
+    citable: bool = Field(
+        default=True,
+        description="Whether the source is citable.",
+    )
+
+    # Make faux immutable
+    model_config = {"frozen": True}
+
+
+class CitationHighlightBoundingBox(BaseModel):
+    text: str
+    page: int
+    x0: float
+    top: float
+    x1: float
+    bottom: float
+
+
+class Citation(BaseModel):
+    source_info: SourceInfo
+    details: list[dict[str, Any]] | None = Field(
+        default=None,
+        description="Extra detail to add to the citation, eg. Page numbers.",
+    )
+    quote_bounding_boxes: list[list[CitationHighlightBoundingBox]] | None = Field(
+        default=None,
+        description="Bounding boxes for the highlights in the citation.",
+    )
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def signature(self) -> str | None:
+        try:
+            if self.source_info.type == "widget":
+                metadata = self.source_info.metadata or {}
+                origin = self.source_info.origin or "unknown"
+                widget_id = self.source_info.widget_id or "unknown"
+                args = [
+                    f"{str(k)}={str(v)}"
+                    for k, v in metadata.get("input_args", {}).items()
+                ]
+                return (
+                    "&".join(
+                        [
+                            "origin=" + origin,
+                            "widget_id=" + widget_id,
+                            "args=[" + "&".join(args) + "]",
+                        ]
+                    )
+                    .lower()
+                    .replace(" ", "_")
+                )
+            return None
+        except Exception:
+            return None
+
+    @model_validator(mode="before")
+    @classmethod
+    def exclude_fields(cls, values):
+        # Exclude these fields from being in the "details" field.  (since this
+        # pollutes the JSON output)
+        _exclude_fields = EXCLUDE_CITATION_DETAILS_FIELDS
+
+        if details := values.get("details"):
+            for detail in details:
+                for key in list(detail.keys()):
+                    if key.lower() in _exclude_fields:
+                        detail.pop(key, None)
+        return values
+
+
+class CitationCollection(BaseModel):
+    citations: list[Citation]
+
+
+class CitationCollectionSSE(BaseSSE):
+    event: Literal["copilotCitationCollection"] = "copilotCitationCollection"
+    # We use a CitationCollection instead of a list because a pydantic model has
+    # a .model_dump_json()
+    data: CitationCollection

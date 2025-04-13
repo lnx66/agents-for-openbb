@@ -1,4 +1,5 @@
 from ast import literal_eval
+import json
 from pydantic import BaseModel
 
 
@@ -15,17 +16,21 @@ class CopilotResponse:
         self.parse_event_stream()
 
     def parse_event_stream(self):
-        captured_message_chunks = ""
         event_name = ""
         lines = self.event_stream.split("\n")
+        copilot_message_event_index = None
         for line in lines:
             if line.startswith("event:"):
                 event_type = line.split("event:")[1].strip()
             if event_type == "copilotMessageChunk" and line.startswith("data:"):
-                event_name = "copilotMessageChunk"
+                if copilot_message_event_index is None:
+                    copilot_message_event_index = len(self.events)
+                    self.events.append(
+                        CopilotEvent(event_type="copilotMessage", content="")
+                    )
                 data_payload = line.split("data:")[1].strip()
                 data_dict_ = literal_eval(data_payload)
-                captured_message_chunks += data_dict_["delta"]
+                self.events[copilot_message_event_index].content += data_dict_["delta"]
             elif event_type == "copilotFunctionCall" and line.startswith("data:"):
                 event_name = "copilotFunctionCall"
                 data_payload = line.split("data:")[1].strip()
@@ -40,13 +45,20 @@ class CopilotResponse:
                 self.events.append(
                     CopilotEvent(event_type=event_name, content=data_dict_)
                 )
-
-        if captured_message_chunks:
-            self.events.append(
-                CopilotEvent(
-                    event_type="copilotMessage", content=captured_message_chunks
+            elif event_type == "copilotCitationCollection" and line.startswith("data:"):
+                event_name = "copilotCitationCollection"
+                data_payload = line.split("data:")[1].strip()
+                data_dict_ = json.loads(data_payload)
+                self.events.append(
+                    CopilotEvent(event_type=event_name, content=data_dict_)
                 )
-            )
+
+        # if captured_message_chunks:
+        #     self.events.append(
+        #         CopilotEvent(
+        #             event_type="copilotMessage", content=captured_message_chunks
+        #         )
+        #     )
 
     @property
     def text(self) -> str:
@@ -60,6 +72,14 @@ class CopilotResponse:
     def function_calls(self) -> list[CopilotEvent]:
         return [
             event for event in self.events if event.event_type == "copilotFunctionCall"
+        ]
+
+    @property
+    def citations(self) -> list[CopilotEvent]:
+        return [
+            event
+            for event in self.events
+            if event.event_type == "copilotCitationCollection"
         ]
 
     def __iter__(self):
