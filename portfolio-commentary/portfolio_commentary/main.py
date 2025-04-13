@@ -3,10 +3,7 @@ import logging
 import os
 from pathlib import Path
 import httpx
-from typing import AsyncGenerator, Any, Dict, List, Callable
-import inspect
-import asyncio
-from common.agent import reasoning_step, remote_function_call, get_remote_data
+from typing import AsyncGenerator, Callable
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -19,17 +16,14 @@ from magentic import (
     SystemMessage,
     UserMessage,
 )
-from magentic.chat_model.openai_chat_model import OpenaiChatModel
 from sse_starlette.sse import EventSourceResponse
 
 from .prompts import SYSTEM_PROMPT
 
 from dotenv import load_dotenv
-from common import agent
 from common.models import (
     AgentQueryRequest,
     StatusUpdateSSE,
-    StatusUpdateSSEData,
     DataContent,
     FunctionCallSSE,
     FunctionCallSSEData,
