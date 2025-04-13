@@ -60,6 +60,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/")
+async def root():
+    """Root endpoint that returns basic API information."""
+    return {
+        "name": "Portfolio Commentary API",
+        "version": "1.0.0",
+        "endpoints": ["/v1/query", "/copilots.json"],
+        "status": "operational"
+    }
+
 # Direct web search function that returns a string
 async def perplexity_web_search(query: str) -> str:
     """Search the web using Perplexity's API through OpenRouter."""

@@ -1,16 +1,16 @@
-# Simple DeepSeek-v3-0324 Copilot
+# Portfolio Commentary Copilot
 
-This is an example agent, powered by [DeepSeek-v3-0324](https://huggingface.co/deepseek-ai/DeepSeek-V3-0324) (via OpenRouter), that can perform question answering.
+This is a FastAPI-based copilot service that provides portfolio commentary and analysis capabilities. The service utilizes DeepSeek for reasoning and Perplexity for web search based on user requests. It is designed to work with OpenBB Workspace and can be deployed using Docker or run locally.
 
 ## Architecture
 
 ```sh
 ┌─────────────────────┐                ┌─────────────────────┐
 │                     │                │                     │
-│   OpenBB Workspace  │ ───────────>   │   Simple Copilot    │
-│      (Frontend)     │     HTTP       │      (Backend)      │
-│                     │    Request     │                     │
-│                     │                │                     │
+│   OpenBB Workspace  │ ───────────>   │   Portfolio         │
+│      (Frontend)     │     HTTP       │   Commentary        │
+│                     │    Request     │   Copilot           │
+│                     │                │   (Backend)         │
 │                     │   <───────────-│                     │
 │                     │      SSE       │                     │
 └─────────────────────┘                └─────────────────────┘
@@ -19,69 +19,91 @@ This is an example agent, powered by [DeepSeek-v3-0324](https://huggingface.co/d
 The architecture consists of two main components:
 
 1. **OpenBB Workspace (Frontend)**: The user interface where queries are entered
-2. **Simple Copilot (Backend)**: Powered by OpenAI, handles the processing of queries and returns answers
+2. **Portfolio Commentary Copilot (Backend)**: A FastAPI service that processes queries and returns analysis
 
-The frontend communicates with the backend via HTTP requests to the `/query`
-endpoint as defined in the copilot.json schema.
+## Prerequisites
 
-## Overview
+- Python 3.10 or higher
+- Poetry for dependency management
+- Docker (optional, for containerized deployment)
 
-This implementation utilizes a FastAPI application to serve as the backend for
-the copilot. The core functionality is powered by `magentic`, a robust, minimal
-framework for working with Large Language Models (LLMs).
+## Getting Started
 
-You're not limited to our setup! If you have preferences for different APIs or
-LLM frameworks, feel free to adapt this implementation. The key is to adhere to
-the schema defined by the `/query` endpoint and the specifications in
-`copilot.json`.
-
-## Getting started
-
-Here's how to get your copilot up and running:
-
-### Prerequisites
-
-Ensure you have poetry, a tool for dependency management and packaging in
-Python, as well as your [OpenRouter](https://openrouter.ai/) API key.
-
-### Installation and Running
+### Local Development
 
 1. Clone this repository to your local machine.
 
-2. Set the OpenRouter API key as an environment variable in your .bashrc or .zshrc file:
-
-    ``` sh
-    # in .zshrc or .bashrc
-    export OPENROUTER_API_KEY=<your-api-key>
-    ```
-
-3. Install the necessary dependencies:
-
-``` sh
-poetry install --no-root
-```
-
-4.Start the API server:
-
-``` sh
-poetry run uvicorn simple_copilot_deepseek.main:app --port 7777 --reload
-```
-
-This command runs the FastAPI application, making it accessible on your network.
-
-### Testing the Copilot
-
-The example copilot has a small, basic test suite to ensure it's
-working correctly. As you develop your copilot, you are highly encouraged to
-expand these tests.
-
-You can run the tests with:
-
+2. Create and activate a virtual environment:
 ```sh
-pytest tests
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 ```
 
-### Accessing the Documentation
+3. Install dependencies using Poetry:
+```sh
+poetry install
+```
 
-Once the API server is running, you can view the documentation and interact with
-the API by visiting: http://localhost:7777/docs
+4. Set up environment variables:
+Create a `.env` file in the root directory with the following content:
+```
+OPENROUTER_API_KEY=your_api_key_here
+```
+
+5. Run the development server:
+```sh
+poetry run uvicorn portfolio_commentary.main:app --reload --port 7777
+```
+
+### Docker Deployment
+
+1. Build the Docker image:
+```sh
+docker build -t portfolio-commentary .
+```
+
+2. Run the container:
+```sh
+docker run -p 7777:7777 --env-file .env portfolio-commentary
+```
+
+### Fly.io Deployment
+
+The project includes a `fly.toml` configuration for deployment to Fly.io. To deploy:
+
+0. Go into copilots.json and change `"query": "https://portfolio-commentary.fly.dev/v1/query"` to `"query": "https://<YOUR-FLY-IO-APP-NAME>.fly.dev/v1/query"`. This will make sure that OpenBB workspace utilizes this endpoint.
+1. Install the Fly CLI
+2. Run `fly launch` to create a new app
+3. Set your environment variables using `fly secrets set`
+4. Deploy with `fly deploy`
+
+## API Documentation
+
+Once the server is running, you can access the API documentation at:
+- Swagger UI: http://localhost:7777/docs
+## Project Structure
+
+```
+portfolio-commentary/
+├── portfolio_commentary/
+│   ├── main.py          # Main FastAPI application
+│   ├── functions.py     # Core functionality
+│   ├── prompts.py       # LLM prompts
+│   └── copilots.json    # Copilot configuration
+├── common/              # Shared utilities
+├── pyproject.toml       # Project dependencies
+├── Dockerfile           # Docker configuration
+└── fly.toml             # Fly.io deployment config
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
