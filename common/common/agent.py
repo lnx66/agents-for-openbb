@@ -190,6 +190,7 @@ async def process_messages(
 ) -> list[AnyMessage] | list[ChatCompletionMessageParam]:
     return await _process_messages_openai(system_prompt, messages)
 
+
 async def _process_messages_openai(
     system_prompt: str,
     messages: list[LlmClientFunctionCallResult | LlmClientMessage],
