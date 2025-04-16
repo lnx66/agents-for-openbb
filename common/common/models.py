@@ -352,6 +352,13 @@ class QueryRequest(BaseModel):
         description="A dictionary containing primary, secondary, and extra widgets.",
     )
 
+    @field_validator("messages")
+    @classmethod
+    def check_messages_not_empty(cls, value):
+        if not value:
+            raise ValueError("messages list cannot be empty.")
+        return value
+
 
 class DataSourceRequest(BaseModel):
     widget_uuid: str
