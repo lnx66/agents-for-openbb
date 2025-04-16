@@ -17,7 +17,7 @@ from magentic.chat_model.litellm_chat_model import LitellmChatModel
 from sse_starlette.sse import EventSourceResponse
 
 from dotenv import load_dotenv
-from common.models import AgentQueryRequest
+from common.models import QueryRequest
 from .prompts import SYSTEM_PROMPT
 
 
@@ -75,7 +75,7 @@ def _get_llm(chat_messages: list):
 
 
 @app.post("/v1/query")
-async def query(request: AgentQueryRequest) -> EventSourceResponse:
+async def query(request: QueryRequest) -> EventSourceResponse:
     """Query the Copilot."""
 
     chat_messages = []

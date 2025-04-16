@@ -2,7 +2,7 @@ import inspect
 import json
 from magentic import Chat, AsyncStreamedStr, FunctionCall
 from common.models import (
-    AgentQueryRequest,
+    QueryRequest,
     Citation,
     CitationCollection,
     CitationCollectionSSE,
@@ -11,7 +11,7 @@ from common.models import (
     DataSourceRequest,
     FunctionCallSSE,
     FunctionCallSSEData,
-    LlmClientFunctionCallResult,
+    LlmClientFunctionCallResultMessage,
     LlmFunctionCall,
     LlmClientMessage,
     StatusUpdateSSE,
@@ -110,11 +110,11 @@ def remote_function_call(
                 self._request = None
 
             @property
-            def request(self) -> AgentQueryRequest:
+            def request(self) -> QueryRequest:
                 return self._request
 
             @request.setter
-            def request(self, request: AgentQueryRequest):
+            def request(self, request: QueryRequest):
                 self._request = request
 
             def _mask_signature(self, func: Callable):
@@ -128,8 +128,8 @@ def remote_function_call(
 
             async def execute_callbacks(
                 self,
-                function_call_result: LlmClientFunctionCallResult,
-                request: AgentQueryRequest,
+                function_call_result: LlmClientFunctionCallResultMessage,
+                request: QueryRequest,
             ) -> AsyncGenerator[Any, None]:
                 if self.callbacks:
                     for callback in self.callbacks:
@@ -214,14 +214,14 @@ def get_wrapped_function(
 
 async def process_messages(
     system_prompt: str,
-    messages: list[LlmClientFunctionCallResult | LlmClientMessage],
+    messages: list[LlmClientFunctionCallResultMessage | LlmClientMessage],
 ) -> list[AnyMessage] | list[ChatCompletionMessageParam]:
     return await _process_messages_openai(system_prompt, messages)
 
 
 async def _process_messages_openai(
     system_prompt: str,
-    messages: list[LlmClientFunctionCallResult | LlmClientMessage],
+    messages: list[LlmClientFunctionCallResultMessage | LlmClientMessage],
 ) -> list[ChatCompletionMessageParam]:
     chat_messages: list[ChatCompletionMessageParam] = [
         ChatCompletionSystemMessageParam(role="system", content=system_prompt)
@@ -248,7 +248,7 @@ async def _process_messages_openai(
 class OpenBBAgent:
     def __init__(
         self,
-        query_request: AgentQueryRequest,
+        query_request: QueryRequest,
         system_prompt: str,
         functions: list[Callable] | None = None,
     ):
@@ -280,7 +280,7 @@ class OpenBBAgent:
             return CitationCollection(citations=[])
         citations: list[Citation] = []
         for message in self.request.messages:
-            if isinstance(message, LlmClientFunctionCallResult):
+            if isinstance(message, LlmClientFunctionCallResultMessage):
                 wrapped_function = get_wrapped_function(
                     function_name=message.extra_state.get(
                         "_locally_bound_function", ""
@@ -307,7 +307,7 @@ class OpenBBAgent:
                 ):
                     # Everything is handle in the function call result message.
                     pass
-                case LlmClientFunctionCallResult(role="tool"):
+                case LlmClientFunctionCallResultMessage(role="tool"):
                     if not self.functions:
                         continue
                     wrapped_function = get_wrapped_function(

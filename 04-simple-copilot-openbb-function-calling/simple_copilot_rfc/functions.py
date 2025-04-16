@@ -1,7 +1,7 @@
 from typing import AsyncGenerator
 from common.agent import reasoning_step, get_remote_data, remote_function_call
 from common.models import (
-    AgentQueryRequest,
+    QueryRequest,
     DataContent,
     FunctionCallSSE,
     StatusUpdateSSE,
@@ -10,9 +10,10 @@ from common.models import (
 
 async def handle_widget_data(data: list[DataContent]) -> str:
     result_str = "--- Data ---\n"
-    for content in data:
-        result_str += f"{content.content}\n"
-        result_str += "------\n"
+    for result in data:
+        for item in result.items:
+            result_str += f"{item.content}\n"
+            result_str += "------\n"
     return result_str
 
 
@@ -26,7 +27,7 @@ async def handle_widget_data(data: list[DataContent]) -> str:
 )
 async def get_widget_data(
     widget_uuid: str,
-    request: AgentQueryRequest,  # Must be included as an argument
+    request: QueryRequest,  # Must be included as an argument
 ) -> AsyncGenerator[FunctionCallSSE | StatusUpdateSSE, None]:
     """Retrieve data for a widget by specifying the widget UUID."""
 

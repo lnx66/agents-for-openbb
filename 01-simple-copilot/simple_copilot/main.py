@@ -9,7 +9,7 @@ from sse_starlette.sse import EventSourceResponse
 from dotenv import load_dotenv
 from common import agent
 from common.models import (
-    AgentQueryRequest,
+    QueryRequest,
 )
 from .prompts import SYSTEM_PROMPT
 
@@ -41,7 +41,7 @@ def get_copilot_description():
 
 
 @app.post("/v1/query")
-async def query(request: AgentQueryRequest) -> EventSourceResponse:
+async def query(request: QueryRequest) -> EventSourceResponse:
     """Query the Copilot."""
     openbb_agent = agent.OpenBBAgent(
         query_request=request,
