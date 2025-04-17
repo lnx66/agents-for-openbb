@@ -1,8 +1,9 @@
-# Simple Copilot with Remote Function Calling
+# Simple Copilot with Remote Function Calling and Citations
 
 This is an example agent, powered by OpenAI, that can perform question
 answering and remote function calling to the OpenBB Workspace to retrieve widget
-data. It also demonstrates "reasoning steps" to the front end as it is executing.
+data. It also demonstrates "reasoning steps" to the front end as it is executing, and
+**returns citations** to the front end.
 
 It does not support handling PDF files or images, but is able to process
 table widgets or text-based widgets.
@@ -87,7 +88,8 @@ OpenBB Workspace                    Custom Agent
 │                     │ <───────────   │                                           │
 │                     │  4. SSE        │                                           │
 │                     │  (text chunks, │                                           │
-│                     │reasoning steps)│                                           │
+│                     │reasoning steps,│                                           │
+│                     │  citations)    │                                           │
 └─────────────────────┘                └───────────────────────────────────────────┘
 ```
 
@@ -139,7 +141,7 @@ poetry install --no-root
 4.Start the API server:
 
 ``` sh
-poetry run uvicorn simple_copilot_rfc.main:app --port 7777 --reload
+poetry run uvicorn simple_copilot_openbb_citations.main:app --port 7777 --reload
 ```
 
 This command runs the FastAPI application, making it accessible on your network.

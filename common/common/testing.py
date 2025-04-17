@@ -53,13 +53,6 @@ class CopilotResponse:
                     CopilotEvent(event_type=event_name, content=data_dict_)
                 )
 
-        # if captured_message_chunks:
-        #     self.events.append(
-        #         CopilotEvent(
-        #             event_type="copilotMessage", content=captured_message_chunks
-        #         )
-        #     )
-
     @property
     def text(self) -> str:
         return "".join(
@@ -169,8 +162,8 @@ class CopilotResponse:
 def capture_stream_response(event_stream: str) -> tuple[str, str]:
     if "copilotFunctionCall" in event_stream:
         event_name = "copilotFunctionCall"
-        event_stream = event_stream.split("\n")
-        data_payload = event_stream[1].split("data:")[-1].strip()
+        lines = event_stream.split("\n")
+        data_payload = lines[1].split("data:")[-1].strip()
         return event_name, data_payload
 
     captured_stream = ""

@@ -7,6 +7,7 @@ from common.models import (
     CitationCollection,
     CitationCollectionSSE,
     DataContent,
+    DataFileReference,
     DataSourceRequest,
     FunctionCallSSE,
     FunctionCallSSEData,
@@ -24,7 +25,15 @@ from magentic import (
     SystemMessage,
     UserMessage,
 )
-from typing import Any, AsyncGenerator, Awaitable, Callable, Literal, cast
+from typing import (
+    Any,
+    AsyncGenerator,
+    Awaitable,
+    Callable,
+    Literal,
+    Protocol,
+    cast,
+)
 import re
 from openai import AsyncOpenAI
 from openai.types.chat import (
@@ -63,6 +72,21 @@ def reasoning_step(
     )
 
 
+class WrappedFunctionProtocol(Protocol):
+    async def execute_post_processing(
+        self, data: list[DataContent | DataFileReference]
+    ) -> str: ...
+    def execute_callbacks(
+        self,
+        function_call_result: LlmClientFunctionCallResult,
+        request: AgentQueryRequest,
+    ) -> AsyncGenerator[Any, None]: ...
+
+    def __call__(
+        self, *args: Any, **kwargs: Any
+    ) -> AsyncGenerator[FunctionCallSSE | StatusUpdateSSE, None]: ...
+
+
 def remote_function_call(
     function: Literal["get_widget_data"],
     output_formatter: Callable[..., Awaitable[str]] | None = None,
@@ -73,8 +97,8 @@ def remote_function_call(
             f"Unsupported function: {function}. Must be 'get_widget_data'."
         )
 
-    def outer_wrapper(func: Callable):
-        class InnerWrapper:
+    def outer_wrapper(func: Callable) -> WrappedFunctionProtocol:
+        class InnerWrapper(WrappedFunctionProtocol):
             def __init__(self):
                 self.__name__ = func.__name__
                 self.__signature__ = self._mask_signature(func)
@@ -115,7 +139,9 @@ def remote_function_call(
                         else:
                             await callback(function_call_result, self.request)
 
-            async def execute_post_processing(self, data: list[DataContent]) -> str:
+            async def execute_post_processing(
+                self, data: list[DataContent | DataFileReference]
+            ) -> str:
                 if self.post_process_function:
                     return await self.post_process_function(data)
                 return str(data)
@@ -171,7 +197,9 @@ def get_remote_data(
     )
 
 
-def get_wrapped_function(function_name: str, functions: list[Any]) -> Callable:
+def get_wrapped_function(
+    function_name: str, functions: list[Any]
+) -> WrappedFunctionProtocol:
     matching_local_functions = list(
         filter(
             lambda x: x.__name__ == function_name,
@@ -268,7 +296,7 @@ class OpenBBAgent:
 
     async def _handle_request(self) -> list[AnyMessage]:
         chat_messages: list[AnyMessage] = [SystemMessage(self.system_prompt)]
-        for i, message in enumerate(self.request.messages):
+        for message in self.request.messages:
             match message:
                 case LlmClientMessage(role="human"):
                     chat_messages.append(UserMessage(content=message.content))

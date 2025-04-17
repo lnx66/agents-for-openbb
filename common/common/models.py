@@ -95,8 +95,8 @@ class LlmClientFunctionCallResult(BaseModel):
 
     role: RoleEnum = RoleEnum.tool
     function: str = Field(description="The name of the called function.")
-    input_arguments: dict[str, Any] | None = Field(
-        default=None, description="The input arguments passed to the function"
+    input_arguments: dict[str, Any] = Field(
+        default_factory=dict, description="The input arguments passed to the function"
     )
     data: list[DataContent | DataFileReference] = Field(
         description="The content of the function call."
