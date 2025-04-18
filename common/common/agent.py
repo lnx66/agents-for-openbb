@@ -1,6 +1,8 @@
 import inspect
 import json
+import os
 from magentic import Chat, AsyncStreamedStr, FunctionCall
+from google import genai
 from common.models import (
     AgentQueryRequest,
     Citation,
@@ -57,6 +59,9 @@ async def create_message_stream(
     async for chunk in content:
         yield {"event": "copilotMessageChunk", "data": json.dumps({"delta": chunk})}
 
+async def stream_text(generator: AsyncGenerator[str, None]) -> AsyncGenerator[dict, None]:
+    async for text_chunk in generator:
+        yield {"event": "copilotMessageChunk", "data": json.dumps({"delta": text_chunk})}
 
 def reasoning_step(
     event_type: Literal["INFO", "WARNING", "ERROR"],
@@ -245,18 +250,73 @@ async def _process_messages_openai(
     return chat_messages
 
 
+class GeminiChat:
+    def __init__(
+            self, 
+            messages: list[AnyMessage],
+            output_types: list[Any] | None = None,  # TODO: Implement this.
+            functions: list[Callable] | None = None,
+            ):
+        self._messages = messages
+        self._last_message: AnyMessage | None = None
+        self._output_types = output_types
+        self._functions = functions
+        self._client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+
+    def _get_system_prompt(self, messages: list[AnyMessage]) -> str:
+        return next(m for m in messages if isinstance(m, SystemMessage)).content
+
+    def _convert_messages(self, messages: list[AnyMessage]) -> list[genai.types.Content]:
+        contents: list[genai.types.Content] = []
+        for message in messages:
+            if isinstance(message, UserMessage):
+                contents.append(
+                    genai.types.Content(
+                        role="user",
+                        parts=[genai.types.Part(text=message.content)]
+                    )
+                )
+            elif isinstance(message, AssistantMessage):
+                contents.append(
+                    genai.types.Content(
+                        role="assistant",
+                        parts=[genai.types.Part(text=message.content)]
+                    )
+                )
+        return contents
+
+    async def asubmit(self) -> "GeminiChat":
+        async def async_str_generator() -> AsyncGenerator[str, None]:
+            async for event in await self._client.aio.models.generate_content_stream(
+                model="gemini-2.0-flash",  # TODO: Make this configurable.
+                contents=self._convert_messages(self._messages),
+                config=genai.types.GenerateContentConfig(
+                    system_instruction=self._get_system_prompt(self._messages)
+                )
+            ):
+                yield event.text
+        self._last_message = AssistantMessage(content=AsyncStreamedStr(async_str_generator()))
+        return self
+    
+    @property
+    def last_message(self) -> None | AnyMessage:
+        return self._last_message
+
+
 class OpenBBAgent:
     def __init__(
         self,
         query_request: AgentQueryRequest,
         system_prompt: str,
         functions: list[Callable] | None = None,
+        chat_class: type[Chat] | type[GeminiChat] | None = None,
     ):
         self.request = query_request
         self.widgets = query_request.widgets
         self.system_prompt = system_prompt
         self.functions = functions
-        self._chat: Chat | None = None
+        self.chat_class = chat_class or Chat
+        self._chat: Chat | GeminiChat | None = None
         self._citations: CitationCollection | None = None
         self._messages: list[AnyMessage] = []
 
@@ -264,7 +324,7 @@ class OpenBBAgent:
         self._messages = await self._handle_request()
         self._citations = await self._handle_callbacks()
 
-        self._chat = Chat(
+        self._chat = self.chat_class(
             messages=self._messages,
             output_types=[AsyncStreamedStr, FunctionCall],
             functions=self.functions if self.functions else None,
