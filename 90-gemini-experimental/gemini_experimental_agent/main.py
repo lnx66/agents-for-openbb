@@ -1,8 +1,6 @@
 import json
 import logging
-import os
 from pathlib import Path
-from typing import AsyncGenerator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -59,6 +57,7 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
         query_request=request,
         system_prompt=SYSTEM_PROMPT,
         chat_class=agent.GeminiChat,
+        functions=[genai.types.Tool(google_search=genai.types.GoogleSearch())],
     )
 
     # Stream the SSEs back to the client.

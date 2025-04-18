@@ -59,9 +59,16 @@ async def create_message_stream(
     async for chunk in content:
         yield {"event": "copilotMessageChunk", "data": json.dumps({"delta": chunk})}
 
-async def stream_text(generator: AsyncGenerator[str, None]) -> AsyncGenerator[dict, None]:
+
+async def stream_text(
+    generator: AsyncGenerator[str, None],
+) -> AsyncGenerator[dict, None]:
     async for text_chunk in generator:
-        yield {"event": "copilotMessageChunk", "data": json.dumps({"delta": text_chunk})}
+        yield {
+            "event": "copilotMessageChunk",
+            "data": json.dumps({"delta": text_chunk}),
+        }
+
 
 def reasoning_step(
     event_type: Literal["INFO", "WARNING", "ERROR"],
@@ -252,11 +259,11 @@ async def _process_messages_openai(
 
 class GeminiChat:
     def __init__(
-            self, 
-            messages: list[AnyMessage],
-            output_types: list[Any] | None = None,  # TODO: Implement this.
-            functions: list[Callable] | None = None,
-            ):
+        self,
+        messages: list[AnyMessage],
+        output_types: list[Any] | None = None,  # TODO: Implement this.
+        functions: list[Callable] | None = None,
+    ):
         self._messages = messages
         self._last_message: AnyMessage | None = None
         self._output_types = output_types
@@ -266,21 +273,21 @@ class GeminiChat:
     def _get_system_prompt(self, messages: list[AnyMessage]) -> str:
         return next(m for m in messages if isinstance(m, SystemMessage)).content
 
-    def _convert_messages(self, messages: list[AnyMessage]) -> list[genai.types.Content]:
+    def _convert_messages(
+        self, messages: list[AnyMessage]
+    ) -> list[genai.types.Content]:
         contents: list[genai.types.Content] = []
         for message in messages:
             if isinstance(message, UserMessage):
                 contents.append(
                     genai.types.Content(
-                        role="user",
-                        parts=[genai.types.Part(text=message.content)]
+                        role="user", parts=[genai.types.Part(text=message.content)]
                     )
                 )
             elif isinstance(message, AssistantMessage):
                 contents.append(
                     genai.types.Content(
-                        role="assistant",
-                        parts=[genai.types.Part(text=message.content)]
+                        role="assistant", parts=[genai.types.Part(text=message.content)]
                     )
                 )
         return contents
@@ -291,13 +298,21 @@ class GeminiChat:
                 model="gemini-2.0-flash",  # TODO: Make this configurable.
                 contents=self._convert_messages(self._messages),
                 config=genai.types.GenerateContentConfig(
-                    system_instruction=self._get_system_prompt(self._messages)
-                )
+                    system_instruction=self._get_system_prompt(self._messages),
+                    tools=self._functions,
+                ),
             ):
                 yield event.text
-        self._last_message = AssistantMessage(content=AsyncStreamedStr(async_str_generator()))
+                if event.candidates[0].finish_reason == "STOP":
+                    if grounding_metadata := event.candidates[0].grounding_metadata:
+                        for grounding_chunk in grounding_metadata.grounding_chunks:
+                            yield f"\n\n<a href='{grounding_chunk.web.uri}'>{grounding_chunk.web.title}</a>"
+
+        self._last_message = AssistantMessage(
+            content=AsyncStreamedStr(async_str_generator())
+        )
         return self
-    
+
     @property
     def last_message(self) -> None | AnyMessage:
         return self._last_message
