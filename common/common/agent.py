@@ -398,16 +398,14 @@ class GeminiChat:
 
                     yield AsyncStreamedStr(async_streamed_str())
 
-        self._last_message = AssistantMessage(
-            content=AsyncStreamedResponse(async_streamed_response())
+        self.add_message(
+            AssistantMessage(content=AsyncStreamedResponse(async_streamed_response()))
         )
         return self
 
     @property
     def last_message(self) -> AnyMessage:
-        if self._last_message is None:
-            return self._messages[-1]
-        return self._last_message
+        return self._messages[-1]
 
 
 class OpenBBAgent:
@@ -526,7 +524,6 @@ class OpenBBAgent:
         # We sneak in the request as extra state.
         function_call.function.request = self.request
 
-        # self._chat.last_message.content._function.request = self.request  # type: ignore[attr-defined]
         # Execute the function.
         async for event in function_call():
             # Yield reasoning steps.
