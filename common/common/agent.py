@@ -1,7 +1,7 @@
 import inspect
 import json
 import os
-from magentic import Chat, AsyncStreamedStr, FunctionCall
+from magentic import Chat, AsyncStreamedStr, FunctionCall, ParallelFunctionCall
 from google import genai
 from common.models import (
     AgentQueryRequest,
@@ -285,36 +285,111 @@ class GeminiChat:
                     )
                 )
             elif isinstance(message, AssistantMessage):
+                if isinstance(message.content, str):
+                    contents.append(
+                        genai.types.Content(
+                            role="model", parts=[genai.types.Part(text=message.content)]
+                        )
+                    )
+                elif isinstance(message.content, ParallelFunctionCall):
+                    for function_call in message.content:
+                        contents.append(
+                            genai.types.Content(
+                                role="model",
+                                parts=[
+                                    genai.types.Part(
+                                        function_call=genai.types.FunctionCall(
+                                            name=function_call.function.__name__,
+                                            args=function_call.arguments,
+                                        )
+                                    )
+                                ],
+                            )
+                        )
+            elif isinstance(message, FunctionResultMessage):
                 contents.append(
                     genai.types.Content(
-                        role="assistant", parts=[genai.types.Part(text=message.content)]
+                        role="user",
+                        parts=[
+                            genai.types.Part(
+                                function_response=genai.types.FunctionResponse(
+                                    name=message.function_call.function.__name__,
+                                    response={"output": message.content},
+                                )
+                            )
+                        ],
                     )
                 )
         return contents
 
-    async def asubmit(self) -> "GeminiChat":
-        async def async_str_generator() -> AsyncGenerator[str, None]:
-            async for event in await self._client.aio.models.generate_content_stream(
-                model="gemini-2.0-flash",  # TODO: Make this configurable.
-                contents=self._convert_messages(self._messages),
-                config=genai.types.GenerateContentConfig(
-                    system_instruction=self._get_system_prompt(self._messages),
-                    tools=self._functions,
-                ),
-            ):
-                yield event.text
-                if event.candidates[0].finish_reason == "STOP":
-                    if grounding_metadata := event.candidates[0].grounding_metadata:
-                        for grounding_chunk in grounding_metadata.grounding_chunks:
-                            yield f"\n\n<a href='{grounding_chunk.web.uri}'>{grounding_chunk.web.title}</a>"
+    def _get_function(self, function_name: str) -> Callable:
+        for function in self._functions if self._functions else []:
+            if function.__name__ == function_name:
+                return function
+        raise ValueError(f"Function not found: {function_name}")
 
-        self._last_message = AssistantMessage(
-            content=AsyncStreamedStr(async_str_generator())
+    def add_message(self, message: AnyMessage) -> "GeminiChat":
+        self._messages.append(message)
+        return self
+
+    async def asubmit(self) -> "GeminiChat":
+        stream = await self._client.aio.models.generate_content_stream(
+            model="gemini-2.0-flash",  # TODO: Make this configurable.
+            contents=self._convert_messages(self._messages),
+            config=genai.types.GenerateContentConfig(
+                system_instruction=self._get_system_prompt(self._messages),
+                tools=self._functions,
+                automatic_function_calling=genai.types.AutomaticFunctionCallingConfig(
+                    disable=True
+                ),
+            ),
         )
+        async for event in stream:
+            if function_calls := event.function_calls:
+                parallel_function_calls = [
+                    FunctionCall(
+                        function=self._get_function(function_call.name),
+                        **function_call.args,
+                    )
+                    for function_call in function_calls
+                ]
+                self.add_message(
+                    AssistantMessage(
+                        content=ParallelFunctionCall(
+                            function_calls=parallel_function_calls
+                        )
+                    )
+                )
+                self._last_message = self._messages[-1]
+                break
+            elif text := event.text:
+
+                async def async_str_generator() -> AsyncGenerator[str, None]:
+                    yield text
+                    async for event in stream:
+                        yield event.text
+                        if event.candidates[0].finish_reason == "STOP":
+                            if grounding_metadata := event.candidates[
+                                0
+                            ].grounding_metadata:
+                                yield "\n\nSources:\n"
+                                for (
+                                    grounding_chunk
+                                ) in grounding_metadata.grounding_chunks:
+                                    yield "<br>"
+                                    yield f"<a href='{grounding_chunk.web.uri}'>{grounding_chunk.web.title}</a>"
+
+                self._last_message = AssistantMessage(
+                    content=AsyncStreamedStr(async_str_generator())
+                )
+                break
+
         return self
 
     @property
-    def last_message(self) -> None | AnyMessage:
+    def last_message(self) -> AnyMessage:
+        if self._last_message is None:
+            return self._messages[-1]
         return self._last_message
 
 
@@ -341,7 +416,7 @@ class OpenBBAgent:
 
         self._chat = self.chat_class(
             messages=self._messages,
-            output_types=[AsyncStreamedStr, FunctionCall],
+            output_types=[AsyncStreamedStr, FunctionCall, ParallelFunctionCall],
             functions=self.functions if self.functions else None,
         )
         async for event in self._execute(max_completions=max_completions):
@@ -412,12 +487,45 @@ class OpenBBAgent:
                     raise ValueError(f"Unsupported message type: {message}")
         return chat_messages
 
+    async def _handle_function_call(
+        self, function_call: FunctionCall
+    ) -> AsyncGenerator[dict, None]:
+        self._chat = cast(Chat | GeminiChat, self._chat)
+        function_call_result: str = ""
+
+        if not isinstance(self._chat.last_message, AssistantMessage):
+            raise ValueError("Last message is not an assistant message")
+
+        # We sneak in the request as extra state.
+        function_call.request = self.request
+
+        # self._chat.last_message.content._function.request = self.request  # type: ignore[attr-defined]
+        # Execute the function.
+        async for event in function_call():
+            # Yield reasoning steps.
+            if isinstance(event, StatusUpdateSSE):
+                yield event.model_dump()
+            # Or an SSE to execute a function on the client-side.
+            elif isinstance(event, FunctionCallSSE):
+                yield event.model_dump()
+                return
+            # Otherwise, append to the function call result.
+            else:
+                function_call_result += str(event)
+        self._chat = self._chat.add_message(
+            FunctionResultMessage(
+                content=function_call_result,
+                function_call=function_call,
+            )
+        )
+
     async def _execute(self, max_completions: int) -> AsyncGenerator[dict, None]:
         completion_count = 0
         # We set a limit to avoid infinite loops.
         while completion_count < max_completions:
             completion_count += 1
-            self._chat = await cast(Chat, self._chat).asubmit()
+            # TODO: Use a protocol for this.
+            self._chat = await cast(Chat | GeminiChat, self._chat).asubmit()
             # Handle a streamed text response.
             if isinstance(self._chat.last_message.content, AsyncStreamedStr):
                 async for event in create_message_stream(
@@ -426,30 +534,17 @@ class OpenBBAgent:
                     yield event
                 return
 
+            elif isinstance(self._chat.last_message.content, ParallelFunctionCall):
+                for function_call in self._chat.last_message.content:
+                    async for event in self._handle_function_call(function_call):
+                        yield event
+
             # Handle a function call.
             elif isinstance(self._chat.last_message.content, FunctionCall):
-                function_call_result: str = ""
-
-                # We sneak in the request as extra state.
-                self._chat.last_message.content._function.request = self.request  # type: ignore[attr-defined]
-                # Execute the function.
-                async for event in self._chat.last_message.content():
-                    # Yield reasoning steps.
-                    if isinstance(event, StatusUpdateSSE):
-                        yield event.model_dump()
-                    # Or an SSE to execute a function on the client-side.
-                    elif isinstance(event, FunctionCallSSE):
-                        yield event.model_dump()
-                        return
-                    # Otherwise, append to the function call result.
-                    else:
-                        function_call_result += str(event)
-                self._chat = self._chat.add_message(
-                    FunctionResultMessage(
-                        content=function_call_result,
-                        function_call=self._chat.last_message.content,
-                    )
-                )
+                async for event in self._handle_function_call(
+                    self._chat.last_message.content
+                ):
+                    yield event
 
 
 async def run_openrouter_agent(

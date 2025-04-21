@@ -1,6 +1,7 @@
 import json
 import logging
 from pathlib import Path
+from typing import AsyncGenerator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,7 +10,6 @@ from sse_starlette.sse import EventSourceResponse
 
 from .prompts import SYSTEM_PROMPT
 
-from google import genai
 
 from dotenv import load_dotenv
 from common import agent
@@ -49,6 +49,15 @@ def get_copilot_description():
     )
 
 
+async def get_inventory(date: str) -> AsyncGenerator[str, None]:
+    yield f"""
+    Inventory as of {date}:
+    - 1000 USD
+    - 23 pounds of gold
+    - 12 pounds of silver
+    """
+
+
 @app.post("/v1/query")
 async def query(request: AgentQueryRequest) -> EventSourceResponse:
     """Query the Copilot."""
@@ -57,7 +66,7 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
         query_request=request,
         system_prompt=SYSTEM_PROMPT,
         chat_class=agent.GeminiChat,
-        functions=[genai.types.Tool(google_search=genai.types.GoogleSearch())],
+        functions=[get_inventory],
     )
 
     # Stream the SSEs back to the client.
