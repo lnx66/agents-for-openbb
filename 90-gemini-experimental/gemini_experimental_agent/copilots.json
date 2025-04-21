@@ -8,7 +8,7 @@
 		},
 		"features": {
 			"streaming": true,
-			"widget-dashboard-select": false,
+			"widget-dashboard-select": true,
 			"widget-dashboard-search": false
 		}
 

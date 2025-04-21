@@ -8,21 +8,21 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sse_starlette.sse import EventSourceResponse
 
-from .prompts import SYSTEM_PROMPT
-
 
 from dotenv import load_dotenv
 from common import agent
 from common.models import (
     AgentQueryRequest,
 )
-
+from .functions import get_widget_data
+from .prompts import render_system_prompt
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 load_dotenv(".env")
 app = FastAPI()
+
 
 origins = [
     "http://localhost",
@@ -49,13 +49,8 @@ def get_copilot_description():
     )
 
 
-async def get_inventory(date: str) -> AsyncGenerator[str, None]:
-    yield f"""
-    Inventory as of {date}:
-    - 1000 USD
-    - 23 pounds of gold
-    - 12 pounds of silver
-    """
+async def start_music(energetic: bool, loud: bool) -> AsyncGenerator[str, None]:
+    yield f"Playing {energetic} and {loud} music."
 
 
 @app.post("/v1/query")
@@ -64,9 +59,9 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
 
     openbb_agent = agent.OpenBBAgent(
         query_request=request,
-        system_prompt=SYSTEM_PROMPT,
+        system_prompt=render_system_prompt(widget_collection=request.widgets),
         chat_class=agent.GeminiChat,
-        functions=[get_inventory],
+        functions=[get_widget_data],
     )
 
     # Stream the SSEs back to the client.

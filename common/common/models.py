@@ -255,6 +255,15 @@ class BaseSSE(BaseModel):
         }
 
 
+class MessageChunkSSEData(BaseModel):
+    delta: str
+
+
+class MessageChunkSSE(BaseSSE):
+    event: Literal["copilotMessageChunk"] = "copilotMessageChunk"
+    data: MessageChunkSSEData
+
+
 class FunctionCallSSEData(BaseModel):
     function: Literal["get_widget_data"]
     input_arguments: dict

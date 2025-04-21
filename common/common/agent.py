@@ -1,7 +1,13 @@
 import inspect
 import json
 import os
-from magentic import Chat, AsyncStreamedStr, FunctionCall, ParallelFunctionCall
+from magentic import (
+    AsyncStreamedResponse,
+    Chat,
+    AsyncStreamedStr,
+    FunctionCall,
+    ParallelFunctionCall,
+)
 from google import genai
 from common.models import (
     AgentQueryRequest,
@@ -16,6 +22,8 @@ from common.models import (
     LlmClientFunctionCallResult,
     LlmFunctionCall,
     LlmClientMessage,
+    MessageChunkSSE,
+    MessageChunkSSEData,
     StatusUpdateSSE,
     StatusUpdateSSEData,
     Widget,
@@ -51,23 +59,6 @@ def sanitize_message(message: str) -> str:
     cleaned_message = re.sub(r"(?<!\{)\{(?!{)", "{{", message)
     cleaned_message = re.sub(r"(?<!\})\}(?!})", "}}", cleaned_message)
     return cleaned_message
-
-
-async def create_message_stream(
-    content: AsyncStreamedStr,
-) -> AsyncGenerator[dict, None]:
-    async for chunk in content:
-        yield {"event": "copilotMessageChunk", "data": json.dumps({"delta": chunk})}
-
-
-async def stream_text(
-    generator: AsyncGenerator[str, None],
-) -> AsyncGenerator[dict, None]:
-    async for text_chunk in generator:
-        yield {
-            "event": "copilotMessageChunk",
-            "data": json.dumps({"delta": text_chunk}),
-        }
 
 
 def reasoning_step(
@@ -291,6 +282,20 @@ class GeminiChat:
                             role="model", parts=[genai.types.Part(text=message.content)]
                         )
                     )
+                elif isinstance(message.content, FunctionCall):
+                    contents.append(
+                        genai.types.Content(
+                            role="model",
+                            parts=[
+                                genai.types.Part(
+                                    function_call=genai.types.FunctionCall(
+                                        name=message.content.function.__name__,
+                                        args=message.content.arguments,
+                                    )
+                                )
+                            ],
+                        )
+                    )
                 elif isinstance(message.content, ParallelFunctionCall):
                     for function_call in message.content:
                         contents.append(
@@ -332,58 +337,70 @@ class GeminiChat:
         self._messages.append(message)
         return self
 
+    def _prepare_tools(
+        self, functions: list[Callable] | None
+    ) -> genai.types.Tool | None:
+        from magentic.chat_model.function_schema import FunctionCallFunctionSchema
+
+        if not functions:
+            return None
+        function_declarations = []
+        for function in functions:
+            schema = FunctionCallFunctionSchema(function)
+            function_declarations.append(
+                {
+                    "name": schema.name,
+                    "description": schema.description,
+                    "parameters": schema.parameters,
+                }
+            )
+        return [genai.types.Tool(function_declarations=function_declarations)]
+
     async def asubmit(self) -> "GeminiChat":
         stream = await self._client.aio.models.generate_content_stream(
             model="gemini-2.0-flash",  # TODO: Make this configurable.
             contents=self._convert_messages(self._messages),
             config=genai.types.GenerateContentConfig(
                 system_instruction=self._get_system_prompt(self._messages),
-                tools=self._functions,
+                tools=self._prepare_tools(self._functions),
                 automatic_function_calling=genai.types.AutomaticFunctionCallingConfig(
                     disable=True
                 ),
             ),
         )
-        async for event in stream:
-            if function_calls := event.function_calls:
-                parallel_function_calls = [
-                    FunctionCall(
-                        function=self._get_function(function_call.name),
-                        **function_call.args,
-                    )
-                    for function_call in function_calls
-                ]
-                self.add_message(
-                    AssistantMessage(
-                        content=ParallelFunctionCall(
-                            function_calls=parallel_function_calls
+
+        async def async_streamed_response() -> (
+            AsyncGenerator[FunctionCall | AsyncStreamedStr, None]
+        ):
+            async for event in stream:
+                if function_calls := event.function_calls:
+                    for function_call in function_calls:
+                        yield FunctionCall(
+                            function=self._get_function(function_call.name),
+                            **function_call.args,
                         )
-                    )
-                )
-                self._last_message = self._messages[-1]
-                break
-            elif text := event.text:
+                elif text := event.text:
 
-                async def async_str_generator() -> AsyncGenerator[str, None]:
-                    yield text
-                    async for event in stream:
-                        yield event.text
-                        if event.candidates[0].finish_reason == "STOP":
-                            if grounding_metadata := event.candidates[
-                                0
-                            ].grounding_metadata:
-                                yield "\n\nSources:\n"
-                                for (
-                                    grounding_chunk
-                                ) in grounding_metadata.grounding_chunks:
-                                    yield "<br>"
-                                    yield f"<a href='{grounding_chunk.web.uri}'>{grounding_chunk.web.title}</a>"
+                    async def async_streamed_str() -> AsyncGenerator[str, None]:
+                        yield text
+                        async for event in stream:
+                            yield event.text
+                            if event.candidates[0].finish_reason == "STOP":
+                                if grounding_metadata := event.candidates[
+                                    0
+                                ].grounding_metadata:
+                                    yield "\n\nSources:\n"
+                                    for (
+                                        grounding_chunk
+                                    ) in grounding_metadata.grounding_chunks:
+                                        yield "<br>"
+                                        yield f"<a href='{grounding_chunk.web.uri}'>{grounding_chunk.web.title}</a>"
 
-                self._last_message = AssistantMessage(
-                    content=AsyncStreamedStr(async_str_generator())
-                )
-                break
+                    yield AsyncStreamedStr(async_streamed_str())
 
+        self._last_message = AssistantMessage(
+            content=AsyncStreamedResponse(async_streamed_response())
+        )
         return self
 
     @property
@@ -416,11 +433,11 @@ class OpenBBAgent:
 
         self._chat = self.chat_class(
             messages=self._messages,
-            output_types=[AsyncStreamedStr, FunctionCall, ParallelFunctionCall],
+            output_types=[AsyncStreamedResponse],
             functions=self.functions if self.functions else None,
         )
         async for event in self._execute(max_completions=max_completions):
-            yield event
+            yield event.model_dump()
 
         if self._citations.citations:
             yield CitationCollectionSSE(data=self._citations).model_dump()
@@ -487,9 +504,19 @@ class OpenBBAgent:
                     raise ValueError(f"Unsupported message type: {message}")
         return chat_messages
 
+    async def _handle_text_stream(
+        self, stream: AsyncStreamedStr
+    ) -> AsyncGenerator[MessageChunkSSE, None]:
+        self._chat = cast(Chat | GeminiChat, self._chat)
+        cached_str = ""
+        async for chunk in stream:
+            cached_str += chunk
+            yield MessageChunkSSE(data=MessageChunkSSEData(delta=chunk))
+        self._chat = self._chat.add_message(AssistantMessage(content=cached_str))
+
     async def _handle_function_call(
         self, function_call: FunctionCall
-    ) -> AsyncGenerator[dict, None]:
+    ) -> AsyncGenerator[FunctionCallSSE | StatusUpdateSSE, None]:
         self._chat = cast(Chat | GeminiChat, self._chat)
         function_call_result: str = ""
 
@@ -504,10 +531,10 @@ class OpenBBAgent:
         async for event in function_call():
             # Yield reasoning steps.
             if isinstance(event, StatusUpdateSSE):
-                yield event.model_dump()
+                yield event
             # Or an SSE to execute a function on the client-side.
             elif isinstance(event, FunctionCallSSE):
-                yield event.model_dump()
+                yield event
                 return
             # Otherwise, append to the function call result.
             else:
@@ -519,7 +546,9 @@ class OpenBBAgent:
             )
         )
 
-    async def _execute(self, max_completions: int) -> AsyncGenerator[dict, None]:
+    async def _execute(
+        self, max_completions: int
+    ) -> AsyncGenerator[MessageChunkSSE | FunctionCallSSE | StatusUpdateSSE, None]:
         completion_count = 0
         # We set a limit to avoid infinite loops.
         while completion_count < max_completions:
@@ -527,26 +556,17 @@ class OpenBBAgent:
             # TODO: Use a protocol for this.
             self._chat = await cast(Chat | GeminiChat, self._chat).asubmit()
             # Handle a streamed text response.
-            if isinstance(self._chat.last_message.content, AsyncStreamedStr):
-                async for event in create_message_stream(
-                    self._chat.last_message.content
-                ):
-                    yield event
+            event: MessageChunkSSE | FunctionCallSSE | StatusUpdateSSE | None = None
+
+            if isinstance(self._chat.last_message.content, AsyncStreamedResponse):
+                async for item in self._chat.last_message.content:
+                    if isinstance(item, AsyncStreamedStr):
+                        async for event in self._handle_text_stream(item):
+                            yield event
+                    elif isinstance(item, FunctionCall):
+                        async for event in self._handle_function_call(item):
+                            yield event
                 return
-
-            elif isinstance(self._chat.last_message.content, ParallelFunctionCall):
-                for function_call in self._chat.last_message.content:
-                    async for event in self._handle_function_call(function_call):
-                        yield event
-
-            # Handle a function call.
-            elif isinstance(self._chat.last_message.content, FunctionCall):
-                async for event in self._handle_function_call(
-                    self._chat.last_message.content
-                ):
-                    yield event
-                    if event.get("event") == "copilotFunctionCall":
-                        return
 
 
 async def run_openrouter_agent(
