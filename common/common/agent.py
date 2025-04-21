@@ -497,7 +497,7 @@ class OpenBBAgent:
             raise ValueError("Last message is not an assistant message")
 
         # We sneak in the request as extra state.
-        function_call.request = self.request
+        function_call.function.request = self.request
 
         # self._chat.last_message.content._function.request = self.request  # type: ignore[attr-defined]
         # Execute the function.
@@ -545,6 +545,8 @@ class OpenBBAgent:
                     self._chat.last_message.content
                 ):
                     yield event
+                    if event.get("event") == "copilotFunctionCall":
+                        return
 
 
 async def run_openrouter_agent(

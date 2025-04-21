@@ -213,8 +213,8 @@ class AgentQueryRequest(BaseModel):
     context: list[RawContext] | None = Field(
         default=None, description="Additional context."
     )
-    widgets: WidgetCollection | None = Field(
-        default=None,
+    widgets: WidgetCollection = Field(
+        default=WidgetCollection(primary=[], secondary=[], extra=[]),
         description="A dictionary containing primary, secondary, and extra widgets.",
     )
 
