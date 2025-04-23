@@ -7,7 +7,7 @@ from common.models import (
     CitationCollection,
     CitationCollectionSSE,
     DataContent,
-    DataFileReference,
+    DataFileReferences,
     DataSourceRequest,
     FunctionCallSSE,
     FunctionCallSSEData,
@@ -74,12 +74,12 @@ def reasoning_step(
 
 class WrappedFunctionProtocol(Protocol):
     async def execute_post_processing(
-        self, data: list[DataContent | DataFileReference]
+        self, data: list[DataContent | DataFileReferences]
     ) -> str: ...
     def execute_callbacks(
         self,
-        function_call_result: LlmClientFunctionCallResult,
-        request: AgentQueryRequest,
+        function_call_result: LlmClientFunctionCallResultMessage,
+        request: QueryRequest,
     ) -> AsyncGenerator[Any, None]: ...
 
     def __call__(
@@ -140,7 +140,7 @@ def remote_function_call(
                             await callback(function_call_result, self.request)
 
             async def execute_post_processing(
-                self, data: list[DataContent | DataFileReference]
+                self, data: list[DataContent | DataFileReferences]
             ) -> str:
                 if self.post_process_function:
                     return await self.post_process_function(data)
