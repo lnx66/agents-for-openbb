@@ -6,16 +6,43 @@ from pydantic import (
     HttpUrl,
     field_validator,
     model_validator,
+    computed_field,
 )
 from enum import Enum
 import json
 import uuid
+
+EXCLUDE_CITATION_DETAILS_FIELDS = [
+    "lastupdated",
+    "source",
+    "id",
+    "uuid",
+    "storedfileuuid",
+    "url",
+    "datakey",
+    "originalfilename",
+    "extension",
+    "category",
+    "subcategory",
+    "transcript_url",
+]
 
 
 class RoleEnum(str, Enum):
     ai = "ai"
     human = "human"
     tool = "tool"
+
+
+class BaseSSE(BaseModel):
+    event: Any
+    data: Any
+
+    def model_dump(self, *args, **kwargs) -> dict:
+        return {
+            "event": self.event,
+            "data": self.data.model_dump_json(exclude_none=True),
+        }
 
 
 class ChartParameters(BaseModel):
@@ -55,58 +82,102 @@ DataFormat = Annotated[
 ]
 
 
-class DataContent(BaseModel):
-    content: str = Field(
-        description="The data content, either as a raw string, JSON string, or as a base64 encoded string."  # noqa: E501
-    )
-    data_format: DataFormat = Field(
-        default_factory=RawObjectDataFormat,
-        description="How the data should be parsed and handled.",
-    )
-
-
-class DataFileReference(BaseModel):
-    file_reference: UUID | HttpUrl = Field(
-        description="The file reference to the data file. Either a OpenBB Hub file UUID, or a URL to a file."  # noqa: E501
-    )
-    data_format: DataFormat = Field(
-        description="Optional. How the data should be parsed. If not provided, a best-effort attempt will be made to automatically determine the data format.",  # noqa: E501
-    )
-
-
-class LlmClientFunctionCallResult(BaseModel):
-    """Contains the result of a function call made against a client."""
-
-    role: RoleEnum = RoleEnum.tool
-    function: str = Field(description="The name of the called function.")
-    input_arguments: dict[str, Any] | None = Field(
-        default=None, description="The input arguments passed to the function"
-    )
-    data: list[DataContent | DataFileReference] = Field(
-        description="The content of the function call."
-    )
-    extra_state: dict[str, Any] = Field(
+class SourceInfo(BaseModel):
+    type: Literal["widget", "direct retrieval", "web", "artifact"]
+    uuid: UUID | None = Field(default=None)
+    origin: str | None = Field(default=None)
+    widget_id: str | None = Field(default=None)
+    name: str | None = Field(default=None)
+    description: str | None = Field(default=None)
+    metadata: dict[str, Any] = Field(
         default_factory=dict,
-        description="Extra state to be passed between the client and this service.",
+        description="Additional metadata (eg. the selected ticker, endpoint used, etc.).",  # noqa: E501
     )
+    citable: bool = Field(
+        default=True,
+        description="Whether the source is citable.",
+    )
+
+    # Make faux immutable
+    model_config = {"frozen": True}
+
+
+class CitationHighlightBoundingBox(BaseModel):
+    text: str
+    page: int
+    x0: float
+    top: float
+    x1: float
+    bottom: float
+
+
+class Citation(BaseModel):
+    source_info: SourceInfo
+    details: list[dict[str, Any]] | None = Field(
+        default=None,
+        description="Extra detail to add to the citation, eg. Page numbers.",
+    )
+    quote_bounding_boxes: list[list[CitationHighlightBoundingBox]] | None = Field(
+        default=None,
+        description="Bounding boxes for the highlights in the citation.",
+    )
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def signature(self) -> str | None:
+        try:
+            if self.source_info.type == "widget":
+                metadata = self.source_info.metadata or {}
+                origin = self.source_info.origin or "unknown"
+                widget_id = self.source_info.widget_id or "unknown"
+                args = [
+                    f"{str(k)}={str(v)}"
+                    for k, v in metadata.get("input_args", {}).items()
+                ]
+                return (
+                    "&".join(
+                        [
+                            "origin=" + origin,
+                            "widget_id=" + widget_id,
+                            "args=[" + "&".join(args) + "]",
+                        ]
+                    )
+                    .lower()
+                    .replace(" ", "_")
+                )
+            return None
+        except Exception:
+            return None
+
+    @model_validator(mode="before")
+    @classmethod
+    def exclude_fields(cls, values):
+        # Exclude these fields from being in the "details" field.  (since this
+        # pollutes the JSON output)
+        _exclude_fields = EXCLUDE_CITATION_DETAILS_FIELDS
+
+        if details := values.get("details"):
+            for detail in details:
+                for key in list(detail.keys()):
+                    if key.lower() in _exclude_fields:
+                        detail.pop(key, None)
+        return values
+
+
+class CitationCollection(BaseModel):
+    citations: list[Citation]
+
+
+class CitationCollectionSSE(BaseSSE):
+    event: Literal["copilotCitationCollection"] = "copilotCitationCollection"
+    # We use a CitationCollection instead of a list because a pydantic model has
+    # a .model_dump_json()
+    data: CitationCollection
 
 
 class LlmFunctionCall(BaseModel):
     function: str
     input_arguments: dict[str, Any]
-
-
-class RawContext(BaseModel):
-    uuid: UUID = Field(description="The UUID of the widget.")
-    name: str = Field(description="The name of the widget.")
-    description: str = Field(
-        description="A description of the data contained in the widget"
-    )
-    data: DataContent = Field(description="The data content of the widget")
-    metadata: dict[str, Any] | None = Field(
-        default=None,
-        description="Additional widget metadata (eg. the selected ticker, etc)",
-    )
 
 
 class Undefined:
@@ -190,8 +261,87 @@ class WidgetCollection(BaseModel):
     )
 
 
-class AgentQueryRequest(BaseModel):
-    messages: list[LlmClientFunctionCallResult | LlmClientMessage] = Field(
+class SingleFileReference(BaseModel):
+    url: HttpUrl = Field(
+        description="The file reference to the data file. A URL to a file."  # noqa: E501
+    )
+    data_format: DataFormat = Field(
+        description="Optional, but recommended. How the data should be parsed. If not provided, a best-effort attempt will be made to automatically determine the data format.",  # noqa: E501
+    )
+    citable: bool = Field(
+        default=True,
+        description="Whether to cite derivatives of the data source.",
+    )
+
+
+class DataFileReferences(BaseModel):
+    items: list[SingleFileReference] = Field(description="A list of file references.")
+    extra_citations: list[Citation] = Field(
+        default_factory=list,
+        description="The citations for the data content.",
+    )
+
+
+class SingleDataContent(BaseModel):
+    content: str = Field(
+        description="The data content, either as a raw string, JSON string, or as a base64 encoded string."  # noqa: E501
+    )
+    data_format: DataFormat = Field(
+        default_factory=RawObjectDataFormat,
+        description="How the data should be parsed and handled.",
+    )
+    citable: bool = Field(
+        default=True,
+        description="Whether to cite derivatives of the data source.",
+    )
+
+
+class DataContent(BaseModel):
+    items: list[SingleDataContent] = Field(description="A list of data content items.")
+    extra_citations: list[Citation] = Field(
+        default_factory=list,
+        description="The citations for the data content.",
+    )
+
+
+class ClientFunctionCallError(BaseModel):
+    # TODO: Turn the error_type into an enum when we have more types of errors
+    error_type: str = Field(description="The type of error that occurred.")
+    content: str = Field(description="The error message of the function call.")
+
+
+class LlmClientFunctionCallResultMessage(BaseModel):
+    """Contains the result of a function call made against a client."""
+
+    role: RoleEnum = RoleEnum.tool
+    function: str = Field(description="The name of the called function.")
+    input_arguments: dict[str, Any] | None = Field(
+        default=None, description="The input arguments passed to the function"
+    )
+    data: list[DataContent | DataFileReferences | ClientFunctionCallError] = Field(
+        description="The content of the function call. Each element corresponds to the result of a different data source."  # noqa: E501
+    )
+    extra_state: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Extra state to be passed between the client and this service.",
+    )
+
+
+class RawContext(BaseModel):
+    uuid: UUID = Field(description="The UUID of the widget.")
+    name: str = Field(description="The name of the widget.")
+    description: str = Field(
+        description="A description of the data contained in the widget"
+    )
+    data: DataContent = Field(description="The data content of the widget")
+    metadata: dict[str, Any] | None = Field(
+        default=None,
+        description="Additional widget metadata (eg. the selected ticker, etc)",
+    )
+
+
+class QueryRequest(BaseModel):
+    messages: list[LlmClientFunctionCallResultMessage | LlmClientMessage] = Field(
         description="A list of messages to submit to the copilot."
     )
     context: list[RawContext] | None = Field(
@@ -226,17 +376,6 @@ class FunctionCallResponse(BaseModel):
         default=None,
         description="Extra state to be passed between the client and this service.",
     )
-
-
-class BaseSSE(BaseModel):
-    event: Any
-    data: Any
-
-    def model_dump(self, *args, **kwargs) -> dict:
-        return {
-            "event": self.event,
-            "data": self.data.model_dump_json(exclude_none=True),
-        }
 
 
 class FunctionCallSSEData(BaseModel):

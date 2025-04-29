@@ -18,7 +18,7 @@ from .prompts import SYSTEM_PROMPT
 from dotenv import load_dotenv
 from common import agent
 from common.models import (
-    AgentQueryRequest,
+    QueryRequest,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -53,7 +53,7 @@ def get_copilot_description():
 
 
 @app.post("/v1/query")
-async def query(request: AgentQueryRequest) -> EventSourceResponse:
+async def query(request: QueryRequest) -> EventSourceResponse:
     """Query the Copilot."""
 
     chat = Chat(
@@ -73,7 +73,11 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
 
     # This is the main execution loop for the Copilot.
     async def execution_loop(chat: Chat):
-        async for event in agent.run_agent(chat=chat):
+        async for event in agent.run_openrouter_agent(
+            messages=request.messages,
+            model="deepseek/deepseek-chat-v3-0324",
+            api_key=os.environ["OPENROUTER_API_KEY"],
+        ):
             yield event
 
     # Stream the SSEs back to the client.

@@ -5,17 +5,12 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from magentic import (
-    AsyncStreamedStr,
-    Chat,
-    FunctionCall,
-)
 from sse_starlette.sse import EventSourceResponse
 
 from dotenv import load_dotenv
 from common import agent
 from common.models import (
-    AgentQueryRequest,
+    QueryRequest,
 )
 from .prompts import SYSTEM_PROMPT
 from .functions import get_random_stout_beers
@@ -53,22 +48,15 @@ def get_copilot_description():
 
 
 @app.post("/v1/query")
-async def query(request: AgentQueryRequest) -> EventSourceResponse:
+async def query(request: QueryRequest) -> EventSourceResponse:
     """Query the Copilot."""
-
-    chat = Chat(
-        messages=await agent.process_messages(SYSTEM_PROMPT, request.messages),
-        output_types=[AsyncStreamedStr, FunctionCall],
-        functions=[get_random_stout_beers],  # Add the function to the LLM.
+    openbb_agent = agent.OpenBBAgent(
+        query_request=request,
+        system_prompt=SYSTEM_PROMPT,
+        functions=[get_random_stout_beers],
     )
 
-    # This is the main execution loop for the Copilot.
-    async def execution_loop(chat: Chat):
-        async for event in agent.run_agent(chat):
-            yield event
-
-    # Stream the SSEs back to the client.
     return EventSourceResponse(
-        content=execution_loop(chat),
+        content=openbb_agent.run(),
         media_type="text/event-stream",
     )

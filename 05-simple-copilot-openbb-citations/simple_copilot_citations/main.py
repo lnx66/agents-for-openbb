@@ -23,9 +23,7 @@ load_dotenv(".env")
 app = FastAPI()
 
 origins = [
-    "http://localhost",
     "http://localhost:1420",
-    "http://localhost:5050",
     "https://pro.openbb.dev",
     "https://pro.openbb.co",
 ]

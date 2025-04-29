@@ -23,7 +23,7 @@ from sse_starlette.sse import EventSourceResponse
 
 from dotenv import load_dotenv
 from common.models import (
-    AgentQueryRequest,
+    QueryRequest,
     ChartParameters,
     ClientArtifact,
     RawContext,
@@ -143,7 +143,7 @@ def _prepare_context(context: str | list[RawContext]) -> HandledContext:
 
 
 @app.post("/v1/query")
-async def query(request: AgentQueryRequest) -> EventSourceResponse:
+async def query(request: QueryRequest) -> EventSourceResponse:
     """Query the Copilot."""
 
     chat_messages = []

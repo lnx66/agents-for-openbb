@@ -1,5 +1,6 @@
 from typing import AsyncGenerator
 from common.agent import reasoning_step, get_remote_data, remote_function_call
+from common.callbacks import cite_widget
 from common.models import (
     QueryRequest,
     DataContent,
@@ -17,17 +18,17 @@ async def handle_widget_data(data: list[DataContent]) -> str:
     return result_str
 
 
-# This is a remote function that is executed by the client / OpenBB Workspace.
-# It is used for retrieving data from a widget on a dashboard.  The function
-# must always include the `request` argument, which will be passed into the
-# function when it is called.
+# We will use a built-in callback which will automatically yield citations for
+# any widget who's data is retrieved.
 @remote_function_call(
     function="get_widget_data",
     output_formatter=handle_widget_data,
+    callbacks=[
+        cite_widget,
+    ],
 )
 async def get_widget_data(
-    widget_uuid: str,
-    request: QueryRequest,  # Must be included as an argument
+    widget_uuid: str, request: QueryRequest
 ) -> AsyncGenerator[FunctionCallSSE | StatusUpdateSSE, None]:
     """Retrieve data for a widget by specifying the widget UUID."""
 

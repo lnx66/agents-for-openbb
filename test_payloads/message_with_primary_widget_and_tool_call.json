@@ -25,14 +25,18 @@
             },
             "data": [
                 {
-                    "content": "Apple Reports Record-Breaking Quarterly Earnings, Stock Soars 10%\nApple Faces Major Supply Chain Disruptions, Delays Expected for iPhone 15\nApple Announces Annual Developer Conference Dates for June"
+                    "items": [
+                        {
+                            "content": "Apple Reports Record-Breaking Quarterly Earnings, Stock Soars 10%\nApple Faces Major Supply Chain Disruptions, Delays Expected for iPhone 15\nApple Announces Annual Developer Conference Dates for June"
+                        }
+                    ]
                 }
             ],
             "extra_state": {
                 "copilot_function_call_arguments": {
                     "widget_uuid": "123e4567-e89b-12d3-a456-426614174000"
                 },
-                "_locally_bound_function": "_get_widget_data"
+                "_locally_bound_function": "get_widget_data"
             }
         }
     ],
