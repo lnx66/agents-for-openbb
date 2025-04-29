@@ -23,7 +23,7 @@ from .prompts import SYSTEM_PROMPT
 from dotenv import load_dotenv
 from common.agent import reasoning_step, remote_function_call, get_remote_data
 from common.models import (
-    AgentQueryRequest,
+    QueryRequest,
     StatusUpdateSSE,
     DataContent,
     FunctionCallSSE,
@@ -341,7 +341,7 @@ def _render_widget(widget: Widget) -> str:
 
 
 @app.post("/v1/query")
-async def query(request: AgentQueryRequest) -> EventSourceResponse:
+async def query(request: QueryRequest) -> EventSourceResponse:
     """Query the Copilot."""
 
     # Custom function to process messages that handles the widget response data properly
@@ -362,8 +362,9 @@ async def query(request: AgentQueryRequest) -> EventSourceResponse:
                     # For get_widget_data results, we'll format them directly
                     result_str = "--- Widget Data ---\n"
                     for content in message.data:
-                        result_str += f"{content.content}\n"
-                        result_str += "------\n"
+                        for item in content.items:
+                            result_str += f"{item.content}\n"
+                            result_str += "------\n"
 
                     # Add a user message with the widget data
                     chat_messages.append(

@@ -21,15 +21,33 @@ The architecture consists of two main components:
 1. **OpenBB Workspace (Frontend)**: The user interface where queries are entered
 2. **Portfolio Commentary Copilot (Backend)**: A FastAPI service that processes queries and returns analysis
 
-## Prerequisites
+## Project Structure
+
+```
+portfolio-commentary/
+├── portfolio_commentary/
+│   ├── main.py          # Main FastAPI application
+│   ├── functions.py     # Core functionality
+│   ├── prompts.py       # LLM prompts
+│   └── copilots.json    # Copilot configuration
+├── common/              # Shared utilities
+├── pyproject.toml       # Project dependencies
+├── Dockerfile           # Docker configuration
+└── fly.toml             # Fly.io deployment config
+```
+
+## Getting Started
+
+Here's how to get your copilot up and running:
+
+### Prerequisites
 
 - Python 3.10 or higher
 - Poetry for dependency management
 - Docker (optional, for containerized deployment)
+- Your OpenRouter API key
 
-## Getting Started
-
-### Local Development
+### Installation and Running
 
 1. Clone this repository to your local machine.
 
@@ -41,13 +59,13 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
 3. Install dependencies using Poetry:
 ```sh
-poetry install
+poetry install --no-root
 ```
 
 4. Set up environment variables:
 Create a `.env` file in the root directory with the following content:
 ```
-OPENROUTER_API_KEY=your_api_key_here
+OPENROUTER_API_KEY=<your-api-key>
 ```
 
 5. Run the development server:
@@ -77,32 +95,10 @@ The project includes a `fly.toml` configuration for deployment to Fly.io. To dep
 3. Set your environment variables using `fly secrets set`
 4. Deploy with `fly deploy`
 
-## API Documentation
+### Accessing the Documentation
 
-Once the server is running, you can access the API documentation at:
-- Swagger UI: http://localhost:7777/docs
-## Project Structure
-
-```
-portfolio-commentary/
-├── portfolio_commentary/
-│   ├── main.py          # Main FastAPI application
-│   ├── functions.py     # Core functionality
-│   ├── prompts.py       # LLM prompts
-│   └── copilots.json    # Copilot configuration
-├── common/              # Shared utilities
-├── pyproject.toml       # Project dependencies
-├── Dockerfile           # Docker configuration
-└── fly.toml             # Fly.io deployment config
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
+Once the API server is running, you can view the documentation and interact with
+the API by visiting: http://localhost:7777/docs
 
 ## License
 
