@@ -18,7 +18,7 @@ from .prompts import SYSTEM_PROMPT
 from dotenv import load_dotenv
 from common import agent
 from common.models import (
-    AgentQueryRequest,
+    QueryRequest,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -53,7 +53,7 @@ def get_copilot_description():
 
 
 @app.post("/v1/query")
-async def query(request: AgentQueryRequest) -> EventSourceResponse:
+async def query(request: QueryRequest) -> EventSourceResponse:
     """Query the Copilot."""
 
     chat = Chat(

@@ -13,7 +13,7 @@ from .prompts import SYSTEM_PROMPT
 from dotenv import load_dotenv
 from common import agent
 from common.models import (
-    AgentQueryRequest,
+    QueryRequest,
 )
 
 
@@ -49,7 +49,7 @@ def get_copilot_description():
 
 
 @app.post("/v1/query")
-async def query(request: AgentQueryRequest) -> EventSourceResponse:
+async def query(request: QueryRequest) -> EventSourceResponse:
     """Query the Copilot."""
 
     # This is the main execution loop for the Copilot.

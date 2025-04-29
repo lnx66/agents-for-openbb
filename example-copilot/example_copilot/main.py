@@ -24,7 +24,7 @@ from sse_starlette.sse import EventSourceResponse
 
 from dotenv import load_dotenv
 from common.models import (
-    AgentQueryRequest,
+    QueryRequest,
     DataContent,
     DataFileReference,
     DataSourceRequest,
@@ -84,7 +84,7 @@ def get_copilot_description():
 
 
 @app.post("/v1/query")
-async def query(request: AgentQueryRequest) -> EventSourceResponse:
+async def query(request: QueryRequest) -> EventSourceResponse:
     """Query the Copilot."""
 
     primary_widgets = None
