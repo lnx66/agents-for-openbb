@@ -1,16 +1,5 @@
 **Note: This is a work-in-progress. API definitions, models, specifications, etc. are still in active development and may change without notice.**
 
-# Table of Contents
-
-- [Overview](#overview)
-- [Examples](#examples)
-- [Usage](#usage)
-  - [A basic conversational agent](#a-basic-conversational-agent)
-  - [Function calling](#function-calling)
-    - [Local function calling](#local-function-calling)
-    - [Remote function calling](#remote-function-calling)
-  - [Reasoning Steps / Status Updates](#reasoning-steps--status-updates)
-
 # Bring your own Agent to the OpenBB Workspace
 
 Welcome to the example repository for integrating custom agents into the OpenBB Workspace.
@@ -24,6 +13,17 @@ Here are a few common reasons why you might want to build your own agent:
 - You want to use a local LLM.
 - You want a agent that is self-hosted on your infrastructure.
 - You are running on-premise in a locked-down environment that doesn't allow data to leave your VPC.
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Examples](#examples)
+- [Usage](#usage)
+  - [A basic conversational agent](#a-basic-conversational-agent)
+  - [Function calling](#function-calling)
+    - [Local function calling](#local-function-calling)
+    - [Remote function calling](#remote-function-calling)
+  - [Reasoning Steps / Status Updates](#reasoning-steps--status-updates)
 
 
 ## Overview
