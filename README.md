@@ -264,6 +264,8 @@ async def query(request: QueryRequest) -> EventSourceResponse:
 
 ```
 
+<img width="726" src="https://openbb-assets.s3.us-east-1.amazonaws.com/docs/custom_copilot/local_function_calling_example.png" alt="Local Function Calling Example">
+
 A few important things to note:
 - The function must be an `async` function.
 - The function must be type-hinted.
@@ -273,9 +275,7 @@ It is also recommended to:
 - Use a descriptive function name (this is passed to the LLM).
 - Use a docstring to describe the function and its parameters (this is passed to the LLM).
 
-Now, when you query the agent, it will be able to call the `get_random_stout_beers` function:
-
-<img src="https://openbb-assets.s3.us-east-1.amazonaws.com/docs/custom_copilot/local_function_calling_example.png" alt="Local Function Calling Example" style="max-width: 600px;">
+Now, when you query the agent, it will be able to call the `get_random_stout_beers` function.
 
 #### Remote function calling
 
@@ -366,8 +366,9 @@ A few important things to note:
 - The function must accept the `request` argument, which will be passed into the function when it is called.
 - The function must be decorated with the `@remote_function_call` decorator.
 - In the `@remote_function_call` decorator, we must specify the `function` name that corresponds to the functions supported by the OpenBB Workspace. Currently only "get_widget_data" is supported.
-- It's optional, but it is recommended to specify an `output_formatter` function that will be used to format the output of the data retrieved from the widget, so that it can be passed back to the LLM in a readable format. If not specified, the
-result of the function call is simply dumped as a string to the LLM.
+- It is recommended to specify an `output_formatter` function that will be used to format the output of the data retrieved from the widget, so that it can be passed back to the LLM in a readable format.
+- If an `output_formatter` is not specified, the
+result is dumped as a string and returned to the LLM.
 - The function must yield the result of the `get_remote_data` function, which must specify the `widget` and `input_arguments` to retrieve data for.
 
 The `request` argument is the same `QueryRequest` object passed into the `query`
@@ -456,7 +457,7 @@ async def get_random_stout_beers(n: int = 1) -> AsyncGenerator[str, None]:
 
 This results in the following reasoning step being displayed in the OpenBB Workspace:
 
-
+<img width="726" alt="reasoning steps example" src="https://github.com/user-attachments/assets/fd0494ad-ea80-41ff-8d30-b90c139cdeb2" />
 
 Some things to note:
 - The `yield reasoning_step(...)` must be called from within the function you've added to your custom agent.
