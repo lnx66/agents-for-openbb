@@ -435,7 +435,6 @@ class OpenBBAgent:
         elif isinstance(self.chat_class, Chat):
             self._model = OpenaiChatModel(model=self._model or "gpt-4o")
 
-
     async def run(self, max_completions: int = 10) -> AsyncGenerator[dict, None]:
         self._messages = await self._handle_request()
         self._citations = await self._handle_callbacks()

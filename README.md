@@ -178,7 +178,6 @@ function to the `functions` argument of the `OpenBBAgent` object.
 For example, let's add a function that returns a list of random stout beers:
 
 ```python
-# functions.py
 import random
 from typing import AsyncGenerator
 from pydantic import BaseModel
@@ -237,21 +236,7 @@ async def get_random_stout_beers(n: int = 1) -> AsyncGenerator[str, None]:
         yield response_str
         return
 
-```
 
-A few important things to note:
-- The function must be an `async` function.
-- The function must be type-hinted.
-- The function must yield a string as its output.
-
-It is also recommended to:
-- Use a descriptive function name (this is passed to the LLM).
-- Use a docstring to describe the function and its parameters (this is passed to the LLM).
-
-Then, add the function to the `functions` argument of the `OpenBBAgent` object:
-
-```python
-# main.py
 @app.post("/v1/query")
 async def query(request: QueryRequest) -> EventSourceResponse:
     """Query the Copilot."""
@@ -265,7 +250,17 @@ async def query(request: QueryRequest) -> EventSourceResponse:
         content=openbb_agent.run(),
         media_type="text/event-stream",
     )
+
 ```
+
+A few important things to note:
+- The function must be an `async` function.
+- The function must be type-hinted.
+- The function must yield a string as its output.
+
+It is also recommended to:
+- Use a descriptive function name (this is passed to the LLM).
+- Use a docstring to describe the function and its parameters (this is passed to the LLM).
 
 Now, when you query the agent, it will be able to call the `get_random_stout_beers` function:
 
@@ -282,9 +277,8 @@ Here is a minimal example that will allow our custom agent to retrieve data from
 that has been added as priority context (without modifying their input parameters):
 
 ```python
-# functions.py
 from typing import AsyncGenerator
-from common.agent import get_remote_data, remote_function_call
+from common import agent
 from common.models import (
     QueryRequest,
     DataContent,
@@ -299,7 +293,7 @@ async def handle_widget_data(data: list[DataContent]) -> str:
         result_str += "------\n"
     return result_str
 
-@remote_function_call(
+@agent.remote_function_call(
     function="get_widget_data",
     output_formatter=handle_widget_data,
 )
@@ -327,13 +321,29 @@ async def get_widget_data(
     # Yield the request to the front-end for the widget data.
     # NB: You *must* yield using `agent.remote_data_request` from inside
     # remote functions (i.e. those decorated with `@remote_function`).
-    yield get_remote_data(
+    yield agent.remote_data_request(
         widget=widget,
         # In this example we will just re-use the currently-set values of
         # the widget parameters.
         input_arguments={param.name: param.current_value for param in widget.params},
     )
     return
+
+
+@app.post("/v1/query")
+async def query(request: QueryRequest) -> EventSourceResponse:
+    """Query the Copilot."""
+    openbb_agent = agent.OpenBBAgent(
+        query_request=request,
+        system_prompt="You are a helpful assistant that can answer questions and retrieve stout beers.",
+        functions=[get_widget_data],  # <-- add the function to the `functions` argument
+    )
+
+    return EventSourceResponse(
+        content=openbb_agent.run(),
+        media_type="text/event-stream",
+    )
+
 ```
 
 In the example above, we choose to use the currently-set values of the widget
