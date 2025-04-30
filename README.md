@@ -1,5 +1,17 @@
 **Note: This is a work-in-progress. API definitions, models, specifications, etc. are still in active development and may change without notice.**
 
+# Table of Contents
+
+- [Bring your own Agent to the OpenBB Workspace](#bring-your-own-agent-to-the-openbb-workspace)
+  - [Overview](#overview)
+  - [Examples](#examples)
+  - [Usage](#usage)
+    - [A basic conversational agent](#a-basic-conversational-agent)
+    - [Function calling](#function-calling)
+      - [Local function calling](#local-function-calling)
+      - [Remote function calling](#remote-function-calling)
+    - [Reasoning Steps / Status Updates](#reasoning-steps--status-updates)
+
 # Bring your own Agent to the OpenBB Workspace
 
 Welcome to the example repository for integrating custom agents into the OpenBB Workspace.
