@@ -14,16 +14,12 @@ Here are a few common reasons why you might want to build your own agent:
 - You want a agent that is self-hosted on your infrastructure.
 - You are running on-premise in a locked-down environment that doesn't allow data to leave your VPC.
 
-## Table of Contents
-
-- [Introduction](#introduction)
-- [Examples](#examples)
-- [Usage](#usage)
-  - [Basic conversational agent](#basic-conversational-agent)
-  - [Function calling](#function-calling)
-    - [Local function calling](#local-function-calling)
-    - [Remote function calling](#remote-function-calling)
-  - [Reasoning Steps / Status Updates](#reasoning-steps--status-updates)
+## Features
+- [Streaming conversations](#basic-conversational-agent)
+- [Function calling](#local-function-calling)
+- [Retrieve data from OpenBB Workspace](#remote-function-calling)
+- [Reasoning Steps / Status Updates](#reasoning-steps--status-updates)
+- [Citations](#citations)
 
 
 ## Introduction
