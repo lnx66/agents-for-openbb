@@ -181,7 +181,7 @@ Workspace. This unique architecture allows you to connect a custom agent,
 running locally on your machine, to widgets added to the OpenBB Workspace
 (whether they're running locally on your machine or remotely on on a web server).
 
-#### Local function calling
+### Local function calling
 
 To add a local function call to your custom agent, you must define a function
 that can be called by the LLM powering your custom agent, and then add that
@@ -277,7 +277,7 @@ It is also recommended to:
 
 Now, when you query the agent, it will be able to call the `get_random_stout_beers` function.
 
-#### Remote function calling
+### Remote function calling
 
 To allow our custom agent to retrieve data from widgets on a dashboard on OpenBB
 Workspace, we must use remote function calling.
@@ -448,10 +448,10 @@ the
 file, or by inspecting the `QueryRequest` model in the Swagger UI of a custom
 agent (at `<your-custom-agent-url>/docs`, eg. `http://localhost:7777/docs`).
 
-#### Priority vs. background widgets
+### Priority vs. background widgets
 ...
 
-#### Global or "extra" widgets
+### Global or "extra" widgets
 ...
 
 ### Reasoning steps / status updates
