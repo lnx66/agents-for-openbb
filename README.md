@@ -179,7 +179,7 @@ OpenBB Workspace is uniquely architected in such a way that it acts not only as
 a front-end, but also as a data gateway for all widgets added to the OpenBB
 Workspace. This unique architecture allows you to connect a custom agent,
 running locally on your machine, to widgets added to the OpenBB Workspace
-(whether they're running locally on your machine or remotely on OpenBB Cloud).
+(whether they're running locally on your machine or remotely on on a web server).
 
 #### Local function calling
 
