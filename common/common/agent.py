@@ -83,7 +83,7 @@ class WrappedFunctionProtocol(Protocol):
     def execute_callbacks(
         self,
         function_call_result: LlmClientFunctionCallResultMessage,
-        request: AgentQueryRequest,
+        request: QueryRequest,
     ) -> AsyncGenerator[Any, None]: ...
 
     def __call__(
