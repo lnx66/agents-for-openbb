@@ -142,7 +142,7 @@ uvicorn main:app --reload --port 7777
 
 And add it to the OpenBB Workspace as a custom agent:
 
-<video src="https://openbb-assets.s3.us-east-1.amazonaws.com/docs/custom_copilot/add_custom_agent.mp4" width="800" height="450" muted autoplay controls="false"/>
+<video src="https://openbb-assets.s3.us-east-1.amazonaws.com/docs/custom_copilot/add_custom_agent.mp4" width="800" height="450" muted autoplay controls="false"></video>
 
 You can now chat with your custom agent in the OpenBB Workspace.
 
