@@ -1,7 +1,7 @@
 from typing import AsyncGenerator
 from common.agent import reasoning_step, get_remote_data, remote_function_call
 from common.models import (
-    AgentQueryRequest,
+    QueryRequest,
     DataContent,
     FunctionCallSSE,
     StatusUpdateSSE,
@@ -26,7 +26,7 @@ async def handle_widget_data(data: list[DataContent]) -> str:
 )
 async def get_widget_data(
     widget_uuid: str,
-    request: AgentQueryRequest,  # Must be included as an argument
+    request: QueryRequest,  # Must be included as an argument
 ) -> AsyncGenerator[FunctionCallSSE | StatusUpdateSSE, None]:
     """Retrieve data for a widget by specifying the widget UUID."""
 

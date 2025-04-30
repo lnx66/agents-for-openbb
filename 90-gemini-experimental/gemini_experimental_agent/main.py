@@ -12,7 +12,7 @@ from sse_starlette.sse import EventSourceResponse
 from dotenv import load_dotenv
 from common import agent
 from common.models import (
-    AgentQueryRequest,
+    QueryRequest,
 )
 from .functions import get_widget_data
 from .prompts import render_system_prompt
@@ -54,7 +54,7 @@ async def start_music(energetic: bool, loud: bool) -> AsyncGenerator[str, None]:
 
 
 @app.post("/v1/query")
-async def query(request: AgentQueryRequest) -> EventSourceResponse:
+async def query(request: QueryRequest) -> EventSourceResponse:
     """Query the Copilot."""
 
     openbb_agent = agent.OpenBBAgent(

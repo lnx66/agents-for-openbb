@@ -206,7 +206,7 @@ class WidgetCollection(BaseModel):
     )
 
 
-class AgentQueryRequest(BaseModel):
+class QueryRequest(BaseModel):
     messages: list[LlmClientFunctionCallResult | LlmClientMessage] = Field(
         description="A list of messages to submit to the copilot."
     )
