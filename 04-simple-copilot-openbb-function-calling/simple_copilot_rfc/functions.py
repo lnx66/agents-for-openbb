@@ -10,9 +10,10 @@ from common.models import (
 
 async def handle_widget_data(data: list[DataContent]) -> str:
     result_str = "--- Data ---\n"
-    for content in data:
-        result_str += f"{content.content}\n"
-        result_str += "------\n"
+    for result in data:
+        for item in result.items:
+            result_str += f"{item.content}\n"
+            result_str += "------\n"
     return result_str
 
 

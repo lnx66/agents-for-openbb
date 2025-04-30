@@ -3,7 +3,7 @@ from common.models import (
     QueryRequest,
     Citation,
     DataSourceRequest,
-    LlmClientFunctionCallResult,
+    LlmClientFunctionCallResultMessage,
     SourceInfo,
 )
 
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 async def cite_widget(
-    function_call_result: LlmClientFunctionCallResult, request: QueryRequest
+    function_call_result: LlmClientFunctionCallResultMessage, request: QueryRequest
 ) -> AsyncGenerator[Citation, None]:
     data_source_requests = [
         DataSourceRequest(**data_source)

@@ -16,11 +16,11 @@ from common.models import (
     CitationCollection,
     CitationCollectionSSE,
     DataContent,
-    DataFileReference,
+    DataFileReferences,
     DataSourceRequest,
     FunctionCallSSE,
     FunctionCallSSEData,
-    LlmClientFunctionCallResult,
+    LlmClientFunctionCallResultMessage,
     LlmFunctionCall,
     LlmClientMessage,
     MessageChunkSSE,
@@ -78,12 +78,12 @@ def reasoning_step(
 
 class WrappedFunctionProtocol(Protocol):
     async def execute_post_processing(
-        self, data: list[DataContent | DataFileReference]
+        self, data: list[DataContent | DataFileReferences]
     ) -> str: ...
     def execute_callbacks(
         self,
-        function_call_result: LlmClientFunctionCallResult,
-        request: QueryRequest,
+        function_call_result: LlmClientFunctionCallResultMessage,
+        request: AgentQueryRequest,
     ) -> AsyncGenerator[Any, None]: ...
 
     def __call__(
@@ -132,7 +132,7 @@ def remote_function_call(
 
             async def execute_callbacks(
                 self,
-                function_call_result: LlmClientFunctionCallResult,
+                function_call_result: LlmClientFunctionCallResultMessage,
                 request: QueryRequest,
             ) -> AsyncGenerator[Any, None]:
                 if self.callbacks:
@@ -144,7 +144,7 @@ def remote_function_call(
                             await callback(function_call_result, self.request)
 
             async def execute_post_processing(
-                self, data: list[DataContent | DataFileReference]
+                self, data: list[DataContent | DataFileReferences]
             ) -> str:
                 if self.post_process_function:
                     return await self.post_process_function(data)
@@ -218,14 +218,14 @@ def get_wrapped_function(
 
 async def process_messages(
     system_prompt: str,
-    messages: list[LlmClientFunctionCallResult | LlmClientMessage],
+    messages: list[LlmClientFunctionCallResultMessage | LlmClientMessage],
 ) -> list[AnyMessage] | list[ChatCompletionMessageParam]:
     return await _process_messages_openai(system_prompt, messages)
 
 
 async def _process_messages_openai(
     system_prompt: str,
-    messages: list[LlmClientFunctionCallResult | LlmClientMessage],
+    messages: list[LlmClientFunctionCallResultMessage | LlmClientMessage],
 ) -> list[ChatCompletionMessageParam]:
     chat_messages: list[ChatCompletionMessageParam] = [
         ChatCompletionSystemMessageParam(role="system", content=system_prompt)
@@ -457,7 +457,7 @@ class OpenBBAgent:
             return CitationCollection(citations=[])
         citations: list[Citation] = []
         for message in self.request.messages:
-            if isinstance(message, LlmClientFunctionCallResult):
+            if isinstance(message, LlmClientFunctionCallResultMessage):
                 wrapped_function = get_wrapped_function(
                     function_name=message.extra_state.get(
                         "_locally_bound_function", ""
@@ -484,7 +484,7 @@ class OpenBBAgent:
                 ):
                     # Everything is handle in the function call result message.
                     pass
-                case LlmClientFunctionCallResult(role="tool"):
+                case LlmClientFunctionCallResultMessage(role="tool"):
                     if not self.functions:
                         continue
                     wrapped_function = get_wrapped_function(
