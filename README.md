@@ -305,11 +305,7 @@ def render_system_prompt(widget_collection: WidgetCollection | None = None) -> s
     widgets_prompt += "## Primary Widgets (prioritize using these widgets when answering the user's query):\n\n"
     for widget in widget_collection.primary if widget_collection else []:
         widgets_prompt += _render_widget(widget)
-
-    widgets_prompt += "\n## Secondary Widgets (use these widgets if the user's query is not answered by the primary widgets):\n\n"
-    for widget in widget_collection.secondary if widget_collection else []:
-        widgets_prompt += _render_widget(widget)
-
+    
     return SYSTEM_PROMPT_TEMPLATE.format(widgets_prompt=widgets_prompt)
 
 
@@ -332,7 +328,7 @@ async def get_widget_data(
     """Retrieve data for a widget by specifying the widget UUID."""
 
     widgets = (
-        request.widgets.primary + request.widgets.secondary if request.widgets else []
+        request.widgets.primary if request.widgets else []
     )
 
     matching_widgets = list(
@@ -341,7 +337,7 @@ async def get_widget_data(
     widget = matching_widgets[0] if matching_widgets else None
 
     if not widget:
-        yield f"Unable to retrieve data for widget with UUID: {widget_uuid} (it is not present on the dashboard)"  # noqa: E501
+        yield f"Unable to retrieve data for widget with UUID: {widget_uuid} (is it added as a priority widget in the context?)"  # noqa: E501
         return
 
     yield agent.remote_data_request(
@@ -469,8 +465,7 @@ async def get_random_stout_beers(n: int = 1) -> AsyncGenerator[str, None]:
 
     """
 
-    # 👇 New
-    yield agent.reasoning_step(
+    yield agent.reasoning_step( # 👈 Yield a reasoning step
         event_type="INFO",
         message="Fetching random stout beers...",
         details={"number of beers": n},
@@ -482,8 +477,7 @@ async def get_random_stout_beers(n: int = 1) -> AsyncGenerator[str, None]:
             headers={"User-Agent": "OpenBB Example Copilot"},
         )
         if response.status_code != 200:
-            # 👇 New
-            yield agent.reasoning_step(
+            yield agent.reasoning_step( # 👈 Yield a reasoning step
                 event_type="ERROR",
                 message="Failed to fetch beers.",
                 details={"error": "Failed to fetch beers."},
@@ -491,8 +485,7 @@ async def get_random_stout_beers(n: int = 1) -> AsyncGenerator[str, None]:
             yield "Failed to fetch beers."
             return
 
-        # 👇 New
-        yield agent.reasoning_step(
+        yield agent.reasoning_step( # 👈 Yield a reasoning step
             event_type="INFO",
             message="Beers fetched successfully.",
         )
