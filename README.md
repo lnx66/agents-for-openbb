@@ -507,6 +507,10 @@ Currently, only priority and secondary widgets are exposed to custom agents. We 
 
 Consider the following dashboard:
 
+<img width="1526" alt="example dashboard" src="https://github.com/user-attachments/assets/9f579a2a-7240-41f5-8aa3-5ffd8a6ed7ba" />
+
+
+
 ### Reasoning steps / status updates
 
 Sometimes, it can be valuable to send reasoning steps (also sometimes referred
