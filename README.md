@@ -10,7 +10,7 @@ agents that are compatible with the OpenBB Workspace.
 ## Features
 - [Streaming conversations](#basic-conversational-agent)
 - [Function calling](#local-function-calling)
-- [Retrieve data from OpenBB Workspace](#remote-function-calling)
+- [Retrieve data from widgets in OpenBB Workspace](#remote-function-calling-retrieving-widget-data-from-openbb-workspace)
 - [Reasoning Steps / Status Updates](#reasoning-steps--status-updates)
 - [Citations](#citations)
 
@@ -177,12 +177,6 @@ running locally on your machine, to widgets added to the OpenBB Workspace
 
 ### Local function calling
 
-To add a local function call to your custom agent, you must define a function
-that can be called by the LLM powering your custom agent, and then add that
-function to the `functions` argument of the `OpenBBAgent` object.
-
-For example, let's add a function that returns a list of random stout beers:
-
 ```python
 import random
 from typing import AsyncGenerator
@@ -260,6 +254,12 @@ async def query(request: QueryRequest) -> EventSourceResponse:
 
 <img width="726" src="https://openbb-assets.s3.us-east-1.amazonaws.com/docs/custom_copilot/local_function_calling_example.png" alt="Local Function Calling Example">
 
+To add a local function call to your custom agent, you must define a function
+that can be called by the LLM powering your custom agent, and then add that
+function to the `functions` argument of the `OpenBBAgent` object.
+
+In the example above, we add a function that returns a list of random stout beers.
+
 A few important things to note:
 - The function must be an `async` function.
 - The function must be type-hinted.
@@ -271,19 +271,7 @@ It is also recommended to:
 
 Now, when you query the agent, it will be able to call the `get_random_stout_beers` function.
 
-### Remote function calling
-
-To allow our custom agent to retrieve data from widgets on a dashboard on OpenBB
-Workspace, we must use remote function calling.
-
-To do this, we must:
-
-- Define a function that can be called by the LLM powering our custom agent, and decorate it with the `@remote_function_call` decorator.
-- Update the system prompt to list all of the available widgets that the custom agent can retrieve data from.
-- Enable remote function calling for the custom agent in the `copilots.json` endpoint (this is used by the OpenBB Workspace to know that remote function calling is supported by the custom agent).
-
-Here is a minimal example that will allow our custom agent to retrieve data from widgets
-that has been added as priority context (without modifying their input parameters):
+### Remote function calling (retrieving widget data from OpenBB Workspace)
 
 ```python
 from typing import AsyncGenerator
@@ -419,6 +407,18 @@ async def query(request: QueryRequest) -> EventSourceResponse:
 
 ```
 
+To allow our custom agent to retrieve data from widgets on a dashboard on OpenBB
+Workspace, we must use remote function calling.
+
+To do this, we must:
+
+- Define a function that can be called by the LLM powering our custom agent, and decorate it with the `@remote_function_call` decorator.
+- Update the system prompt to list all of the available widgets that the custom agent can retrieve data from.
+- Enable remote function calling for the custom agent in the `copilots.json` endpoint (this is used by the OpenBB Workspace to know that remote function calling is supported by the custom agent).
+
+Here is a minimal example that will allow our custom agent to retrieve data from widgets
+that has been added as priority context (without modifying their input parameters):
+
 In the example above, we choose to use the currently-set values of the widget
 parameters. In a more advanced example, we could modify the input parameters of
 the widget depending on the user query.
@@ -474,10 +474,11 @@ file.
 
 #### `remote_data_request`
 
-The decorated remote function must yield the result of the `remote_data_request`
+The decorated remote function must yield the result of the `agent.remote_data_request`
 function, which must specify the `Widget` and `input_arguments` to retrieve data
-for. You can view the full schema of the `Widget` model in the [common/models.py](https://github.com/OpenBB-finance/copilot-for-terminal-pro/blob/main/common/common/models.py) file
-for.
+for. 
+
+To learn more about how widgets work, see the [Widget Priority](#widget-priority) section of this README.
 
 #### `request` 
 
@@ -495,6 +496,97 @@ the
 [common/models.py](https://github.com/OpenBB-finance/copilot-for-terminal-pro/blob/main/common/common/models.py)
 file, or by inspecting the `QueryRequest` model in the Swagger UI of a custom
 agent (at `<your-custom-agent-url>/docs`, eg. `http://localhost:7777/docs`).
+
+
+### Reasoning steps / status updates
+
+```python
+from common import agent
+
+async def get_random_stout_beers(n: int = 1) -> AsyncGenerator[str, None]:
+    """Get a random stout beer from the Beer API.
+
+    It is recommended to display the image url in the UI
+    for the user so that they can see the beer.
+
+    Parameters:
+        n: int = 1
+            The number of beers to return.
+            Maximum is 10.
+
+
+    """
+
+    # 👇 New
+    yield agent.reasoning_step(
+        event_type="INFO",
+        message="Fetching random stout beers...",
+        details={"number of beers": n},
+    )
+
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            "https://api.sampleapis.com/beers/stouts",
+            headers={"User-Agent": "OpenBB Example Copilot"},
+        )
+        if response.status_code != 200:
+            # 👇 New
+            yield agent.reasoning_step(
+                event_type="ERROR",
+                message="Failed to fetch beers.",
+                details={"error": "Failed to fetch beers."},
+            )
+            yield "Failed to fetch beers."
+            return
+
+        # 👇 New
+        yield agent.reasoning_step(
+            event_type="INFO",
+            message="Beers fetched successfully.",
+        )
+
+        data = response.json()
+        random_sample = random.sample(data, n)
+        beers = [Beer(**beer) for beer in random_sample]
+
+        response_str = "-- Beers --\n"
+        for beer in beers:
+            response_str += f"name: {beer.name}\n"
+            response_str += f"price: {beer.price}\n"
+            response_str += f"rating: {beer.rating.average}\n"
+            response_str += f"reviews: {beer.rating.reviews}\n"
+            response_str += (
+                f"image (use this to display the beer image): {beer.image}\n"
+            )
+            response_str += "-----------------------------------\n"
+        yield response_str
+        return
+```
+
+This results in the following reasoning step being displayed in the OpenBB Workspace:
+
+<img width="726" alt="reasoning steps example" src="https://github.com/user-attachments/assets/fd0494ad-ea80-41ff-8d30-b90c139cdeb2" />
+
+Sometimes, it can be valuable to send reasoning steps (also sometimes referred
+to as status updates) that contain extra information back to the OpenBB
+Workspace while your custom agent is performing tasks. This is useful for
+providing the user with feedback on the status of the task, or for providing the
+user with additional information that can help them understand the task at hand.
+
+To send a reasoning step back to the OpenBB Workspace, you `yield` from the `reasoning_step` function from within one of the functions you've added to your custom agent.
+
+For example, let's modify the `get_random_stout_beers` function above to send reasoning steps back to the OpenBB Workspace while it executes:
+
+Some things to note:
+- The `yield reasoning_step(...)` must be called from within the function you've added to your custom agent.
+- The reasoning step can have an `event_type` of `INFO`, `WARNING`, or `ERROR`.
+- The reasoning step must specify a `message`, which will be displayed to the user in the OpenBB Workspace.
+- The reasoning step can optionally include a `details` dictionary, which will be displayed to the user as a table in the OpenBB Workspace, if they expand the reasoning step.
+
+Reasoning steps can be yielded from both local and remote functions.
+
+### Citations
+...
 
 ### Widget Priority
 There are three types of widgets that are exposed to custom agents in the `QueryRequest` object via the `widgets` field:
@@ -575,92 +667,3 @@ WidgetCollection(
 
 You can also see that the currently-set values of the widget parameters are
 sent through to the custom agent as part of the `Widget` object.
-
-### Reasoning steps / status updates
-
-Sometimes, it can be valuable to send reasoning steps (also sometimes referred
-to as status updates) that contain extra information back to the OpenBB
-Workspace while your custom agent is performing tasks. This is useful for
-providing the user with feedback on the status of the task, or for providing the
-user with additional information that can help them understand the task at hand.
-
-To send a reasoning step back to the OpenBB Workspace, you `yield` from the `reasoning_step` function from within one of the functions you've added to your custom agent.
-
-For example, let's modify the `get_random_stout_beers` function above to send reasoning steps back to the OpenBB Workspace while it executes:
-
-```python
-from common import agent
-
-async def get_random_stout_beers(n: int = 1) -> AsyncGenerator[str, None]:
-    """Get a random stout beer from the Beer API.
-
-    It is recommended to display the image url in the UI
-    for the user so that they can see the beer.
-
-    Parameters:
-        n: int = 1
-            The number of beers to return.
-            Maximum is 10.
-
-
-    """
-
-    # 👇 New
-    yield agent.reasoning_step(
-        event_type="INFO",
-        message="Fetching random stout beers...",
-        details={"number of beers": n},
-    )
-
-    async with httpx.AsyncClient() as client:
-        response = await client.get(
-            "https://api.sampleapis.com/beers/stouts",
-            headers={"User-Agent": "OpenBB Example Copilot"},
-        )
-        if response.status_code != 200:
-            # 👇 New
-            yield agent.reasoning_step(
-                event_type="ERROR",
-                message="Failed to fetch beers.",
-                details={"error": "Failed to fetch beers."},
-            )
-            yield "Failed to fetch beers."
-            return
-
-        # 👇 New
-        yield agent.reasoning_step(
-            event_type="INFO",
-            message="Beers fetched successfully.",
-        )
-
-        data = response.json()
-        random_sample = random.sample(data, n)
-        beers = [Beer(**beer) for beer in random_sample]
-
-        response_str = "-- Beers --\n"
-        for beer in beers:
-            response_str += f"name: {beer.name}\n"
-            response_str += f"price: {beer.price}\n"
-            response_str += f"rating: {beer.rating.average}\n"
-            response_str += f"reviews: {beer.rating.reviews}\n"
-            response_str += (
-                f"image (use this to display the beer image): {beer.image}\n"
-            )
-            response_str += "-----------------------------------\n"
-        yield response_str
-        return
-```
-
-This results in the following reasoning step being displayed in the OpenBB Workspace:
-
-<img width="726" alt="reasoning steps example" src="https://github.com/user-attachments/assets/fd0494ad-ea80-41ff-8d30-b90c139cdeb2" />
-
-Some things to note:
-- The `yield reasoning_step(...)` must be called from within the function you've added to your custom agent.
-- The reasoning step can have an `event_type` of `INFO`, `WARNING`, or `ERROR`.
-- The reasoning step must specify a `message`, which will be displayed to the user in the OpenBB Workspace.
-- The reasoning step can optionally include a `details` dictionary, which will be displayed to the user as a table in the OpenBB Workspace, if they expand the reasoning step.
-
-Reasoning steps can be yielded from both local and remote functions.
-
-### Citations
