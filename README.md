@@ -14,11 +14,7 @@ agents that are compatible with the OpenBB Workspace.
 - [Reasoning Steps / Status Updates](#reasoning-steps--status-updates)
 - [Citations](#citations)
 
-If you're looking to get started quickly, we suggest running one of the example
-agents included as part of this repository, and adding it as a custom copilot to
-the OpenBB Workspace (each example copilot includes instructions on how to run
-them). Cloning and modifying an example copilot is a great way get started
-building a custom agent.
+For a quick start, run one of the included example agents and add it as a custom copilot to OpenBB Workspace (instructions included with each example). Cloning and modifying an existing example is the fastest way to build your own custom agent.
 
 ## Introduction
 
@@ -159,21 +155,14 @@ There are two types of function calling supported by a custom agent:
 1. Local function calling
 2. Remote function calling
 
-**Local function calling** is what you're probably used to from other agents. The
-function call is made by the LLM powering your custom agent, and executed
-directly by the same process / backend that is running your agent (for example,
-locally on your machine).
+**Local function calling** allows the LLM to execute functions directly within your agent's backend process (typically running locally on your machine).
 
-**Remote function calling** is a special type of function call specific to
-OpenBB Workspace that is executed by the OpenBB Workspace web app (on the front
-end, rather than locally on your machine) to fetch widget data and send it to
-your custom agent.
+**Remote function calling** allows the OpenBB Workspace web app to execute functions on the front end to fetch widget data and send it to your custom agent.
 
-OpenBB Workspace is uniquely architected in such a way that it acts not only as
-a front-end, but also as a data gateway for all widgets added to the OpenBB
-Workspace. This unique architecture allows you to connect a custom agent,
-running locally on your machine, to widgets added to the OpenBB Workspace
-(whether they're running locally on your machine or remotely on on a web server).
+OpenBB Workspace functions as both a front-end and a data gateway for all
+widgets. This architecture enables your local custom agent to connect with
+widgets in the OpenBB Workspace, regardless of whether they're being served locally
+on localhost or on a remote web server.
 
 ### Local function calling
 
@@ -269,7 +258,7 @@ It is also recommended to:
 - Use a descriptive function name (this is passed to the LLM).
 - Use a docstring to describe the function and its parameters (this is passed to the LLM).
 
-Now, when you query the agent, it will be able to call the `get_random_stout_beers` function.
+When you query the agent, it will be able to call the `get_random_stout_beers` function.
 
 ### Remote function calling (retrieving widget data from OpenBB Workspace)
 
@@ -412,41 +401,27 @@ Workspace, we must use remote function calling.
 
 To do this, we must:
 
-- Define a function that can be called by the LLM powering our custom agent, and decorate it with the `@remote_function_call` decorator.
-- Update the system prompt to list all of the available widgets that the custom agent can retrieve data from.
-- Enable remote function calling for the custom agent in the `copilots.json` endpoint (this is used by the OpenBB Workspace to know that remote function calling is supported by the custom agent).
+- Define a function with the `@remote_function_call` decorator
+- Update system prompt to include available widgets
+- Enable remote function calling in `copilots.json` endpoint
 
-Here is a minimal example that will allow our custom agent to retrieve data from widgets
-that has been added as priority context (without modifying their input parameters):
+In the example above, we use the widget's current parameter values, but in more advanced cases, we could modify these based on the user query.
 
-In the example above, we choose to use the currently-set values of the widget
-parameters. In a more advanced example, we could modify the input parameters of
-the widget depending on the user query.
-
-A few important things to note:
-- The function must be an `async` function.
-- The function must accept the `request` argument, which will be passed into the function when it is called.
-- The function must be decorated with `@remote_function_call`.
-- The function must yield the result of the `get_remote_data` function, which must specify the `widget` and `input_arguments` to retrieve data for.
+The function must:
+- Be `async`
+- Include the `request` parameter
+- Use the `@remote_function_call` decorator
+- Yield the result of `get_remote_data`, specifying both `widget` and `input_arguments`
 
 
 #### `@remote_function_call`
-The `@remote_function_call` decorator is used to specify that the function is
-capable of retrieving data from widgets on the OpenBB Workspace.
+The `@remote_function_call` decorator marks a function for retrieving data from OpenBB Workspace widgets.
 
-The decorator must specify the `function` name that corresponds to the remote functions
-supported by the OpenBB Workspace. Currently only `"get_widget_data"` is supported.
+It requires a `function` parameter (currently only `"get_widget_data"` is supported).
 
-By default, the full data retrieved from the widget is dumped as a string and
-returned to the LLM. However, you can also optionally specify an
-`output_formatter` function that will be used to format the output of the data
-retrieved from the widget, so that it can be passed back to the LLM in a
-readable format. 
+By default, widget data is returned to the LLM as a raw string. You can provide an optional `output_formatter` function that accepts a list of `DataContent` objects and returns a formatted string.
 
-The `output_formatter` function must accept a list of `DataContent` objects, and
-must return a string.
-
-Here's an example of a `DataContent` object with a single item and no extra citations:
+Example of a `DataContent` object with a single item:
 
 ```python
 from common.models import DataContent, SingleDataContent, RawObjectDataFormat
@@ -467,10 +442,7 @@ data_content_example = DataContent(
 )
 ```
 
-The `data_format` object is available as a hint on how to properly handle the widget data. The 
-`parse_as` field specifies whether the data should be treated as a table, chart, or text. To see the full list of possible `data_format`s, see the `DataFormat` model in the
-[common/models.py](https://github.com/OpenBB-finance/copilot-for-terminal-pro/blob/main/common/common/models.py)
-file.
+The `data_format` object provides hints for handling widget data, with `parse_as` indicating whether to treat data as a table, chart, or text. For all available formats, see the `DataFormat` model in [common/models.py](https://github.com/OpenBB-finance/copilot-for-terminal-pro/blob/main/common/common/models.py).
 
 #### `remote_data_request`
 
@@ -482,20 +454,11 @@ To learn more about how widgets work, see the [Widget Priority](#widget-priority
 
 #### `request` 
 
-The `request` argument is the same `QueryRequest` object passed into the `query`
-endpoint. It contains the current conversation's messages, any explicitly-added
-context, information about widgets on the currently-active dashboard, and so on.
+The `request` argument is the `QueryRequest` object passed to the `query` endpoint, containing conversation messages, added context, and information about dashboard widgets.
 
-This is useful to search for the widgets specified by the LLM, or use other
-pieces of the `request` during your function call. For example, we use the
-`request` argument in the `get_widget_data` function above to filter the widgets
-according to their UUIDs.
+It's useful for finding widgets specified by the LLM or accessing other request data. In the `get_widget_data` function above, we use it to filter widgets by UUID.
 
-You can view the full schema either by looking at the `QueryRequest` model in
-the
-[common/models.py](https://github.com/OpenBB-finance/copilot-for-terminal-pro/blob/main/common/common/models.py)
-file, or by inspecting the `QueryRequest` model in the Swagger UI of a custom
-agent (at `<your-custom-agent-url>/docs`, eg. `http://localhost:7777/docs`).
+View the full schema in the `QueryRequest` model in [common/models.py](https://github.com/OpenBB-finance/copilot-for-terminal-pro/blob/main/common/common/models.py) or through the Swagger UI at `<your-custom-agent-url>/docs` (e.g., `http://localhost:7777/docs`).
 
 
 ### Reasoning steps / status updates
@@ -567,37 +530,27 @@ This results in the following reasoning step being displayed in the OpenBB Works
 
 <img width="726" alt="reasoning steps example" src="https://github.com/user-attachments/assets/fd0494ad-ea80-41ff-8d30-b90c139cdeb2" />
 
-Sometimes, it can be valuable to send reasoning steps (also sometimes referred
-to as status updates) that contain extra information back to the OpenBB
-Workspace while your custom agent is performing tasks. This is useful for
-providing the user with feedback on the status of the task, or for providing the
-user with additional information that can help them understand the task at hand.
+Reasoning steps (or status updates) provide real-time feedback to users in the OpenBB Workspace during task execution. To implement them, `yield` from the `agent.reasoning_step` function within your custom agent's functions:
 
-To send a reasoning step back to the OpenBB Workspace, you `yield` from the `reasoning_step` function from within one of the functions you've added to your custom agent.
+- Use `event_type` of `INFO`, `WARNING`, or `ERROR` to indicate severity
+- Include a `message` that will display to the user
+- Optionally add a `details` dictionary for additional information (displays as an expandable table)
 
-For example, let's modify the `get_random_stout_beers` function above to send reasoning steps back to the OpenBB Workspace while it executes:
-
-Some things to note:
-- The `yield reasoning_step(...)` must be called from within the function you've added to your custom agent.
-- The reasoning step can have an `event_type` of `INFO`, `WARNING`, or `ERROR`.
-- The reasoning step must specify a `message`, which will be displayed to the user in the OpenBB Workspace.
-- The reasoning step can optionally include a `details` dictionary, which will be displayed to the user as a table in the OpenBB Workspace, if they expand the reasoning step.
-
-Reasoning steps can be yielded from both local and remote functions.
+Reasoning steps work with both local and remote functions, as shown in the `get_random_stout_beers` example above.
 
 ### Citations
 ...
 
 ### Widget Priority
-There are three types of widgets that are exposed to custom agents in the `QueryRequest` object via the `widgets` field:
+Custom agents receive three widget types via the `QueryRequest.widgets` field:
 
-- Priority / primary widgets -- These are widgets that the user has manually and explicitly added to context.
-- Secondary widgets -- These are widgets that are on the currently-active dashboard, but have not been added to the custom agent explicitly by the user.
-- Extra widgets -- Any widgets that have been added to the OpenBB Workspace (whether they are visible on the currently-active dashboard or not).
+- **Primary widgets**: Explicitly added by the user to the context
+- **Secondary widgets**: Present on the active dashboard but not explicitly added
+- **Extra widgets**: Any widgets added to OpenBB Workspace (visible or not)
 
-Currently, only priority and secondary widgets are exposed to custom agents. We are busy adding support for extra widgets.
+Currently, only primary and secondary widgets are accessible to custom agents, with extra widget support coming soon.
 
-Consider the following dashboard, which shows two widgets. The first widget is the Management Team widget (which has been added explicitly by the user as a priority widget), and the second widget is the Historical Stock Price widget (which is a secondary widget, as it is on the dashboard but not in the priority context):
+The dashboard below shows a Management Team widget (primary/priority) and a Historical Stock Price widget (secondary):
 
 <img width="1526" alt="example dashboard" src="https://github.com/user-attachments/assets/9f579a2a-7240-41f5-8aa3-5ffd8a6ed7ba" />
 
@@ -665,5 +618,5 @@ WidgetCollection(
 )
 ```
 
-You can also see that the currently-set values of the widget parameters are
-sent through to the custom agent as part of the `Widget` object.
+You can also see the parameter information of each widget in the `params` field
+of the `Widget` object.
