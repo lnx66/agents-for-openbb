@@ -521,7 +521,51 @@ Reasoning steps (or status updates) provide real-time feedback to users in the O
 Reasoning steps work with both local and remote functions, as shown in the `get_random_stout_beers` example above.
 
 ### Citations
-...
+```python
+from common import agent
+
+@agent.remote_function_call(
+    function="get_widget_data",
+    output_formatter=handle_widget_data,
+    callbacks=[
+        agent.cite_widget,  # 👈 Yield citations for retrieved widgets
+    ],
+)
+async def get_widget_data(
+    widget_uuid: str,
+    request: QueryRequest,  # Must be included as an argument
+) -> AsyncGenerator[FunctionCallSSE | StatusUpdateSSE, None]:
+    """Retrieve data for a widget by specifying the widget UUID."""
+
+    widgets = (
+        request.widgets.primary if request.widgets else []
+    )
+
+    matching_widgets = list(
+        filter(lambda widget: str(widget.uuid) == widget_uuid, widgets)
+    )
+    widget = matching_widgets[0] if matching_widgets else None
+
+    if not widget:
+        yield f"Unable to retrieve data for widget with UUID: {widget_uuid} (is it added as a priority widget in the context?)"  # noqa: E501
+        return
+
+    yield agent.remote_data_request(
+        widget=widget,
+        input_arguments={param.name: param.current_value for param in widget.params},
+    )
+    return
+```
+
+To cite widgets whose data is retrieved using remote function calling, you can
+use the `agent.cite_widget` callback that is included as part of the `agent`
+library. If instead you'd like to have custom control over your citations, you
+can implement your own callback function (see the [Custom citations](#custom-citations)
+section of this README for an example).
+
+#### Custom citations
+
+Coming soon.
 
 ### Widget Priority
 Custom agents receive three widget types via the `QueryRequest.widgets` field:
