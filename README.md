@@ -505,11 +505,76 @@ There are three types of widgets that are exposed to custom agents in the `Query
 
 Currently, only priority and secondary widgets are exposed to custom agents. We are busy adding support for extra widgets.
 
-Consider the following dashboard:
+Consider the following dashboard, which shows two widgets. The first widget is the Management Team widget (which has been added explicitly by the user as a priority widget), and the second widget is the Historical Stock Price widget (which is a secondary widget, as it is on the dashboard but not in the priority context):
 
 <img width="1526" alt="example dashboard" src="https://github.com/user-attachments/assets/9f579a2a-7240-41f5-8aa3-5ffd8a6ed7ba" />
 
+If we inspect the `request.widgets` attribute of the `QueryRequest` object, we
+can see the following was sent through to the custom agent:
 
+```python
+>>> request.widgets
+WidgetCollection(
+    primary=[
+        Widget(
+            uuid=UUID('68ab6973-ed1a-45aa-ab20-efd3e016dd48'),
+            origin='OpenBB API',
+            widget_id='management_team',
+            name='Management Team',
+            description='Details about the management team of a company, including name, title, and compensation.',
+            params=[
+                WidgetParam(
+                    name='symbol',
+                    type='ticker',
+                    description='The symbol of the asset, e.g. AAPL,GOOGL,MSFT',
+                    default_value=None,
+                    current_value='AAPL',
+                    options=[]
+                )
+            ],
+            metadata={
+                'source': 'Financial Modelling Prep',
+                'lastUpdated': 1746177646279
+            }
+        )
+    ],
+    secondary=[
+        Widget(
+            uuid=UUID('bfa0aaaf-0b63-49b9-bb48-b13ef9db514b'),
+            origin='OpenBB API',
+            widget_id='eod_price',
+            name='Historical Stock Price',
+            description='Historical stock price data, including open, high, low, close, volume, etc.',
+            params=[
+                WidgetParam(
+                    name='symbol',
+                    type='ticker',
+                    description='The symbol of the asset, e.g. AAPL,GOOGL,MSFT',
+                    default_value=None,
+                    current_value='AAPL',
+                    options=[]
+                ),
+                WidgetParam(
+                    name='start_date',
+                    type='date',
+                    description='The start date of the historical data',
+                    default_value='2023-05-02',
+                    current_value='2023-05-02',
+                    options=[]
+                )
+            ],
+            metadata={
+                'source': 'Financial Modelling Prep',
+                'lastUpdated': 1746177655947
+            }
+        )
+    ],
+    extra=[]
+)
+```
+
+You can also see that the currently-set values of the widget parameters are
+sent through to the custom agent as part of the `Widget` object.
 
 ### Reasoning steps / status updates
 
