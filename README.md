@@ -285,7 +285,7 @@ You can use the following functions to help you answer the user's query:
 
 
 def _render_widget(widget: Widget) -> str:
-    """Formats a widget's information into a LLM-friendly string representation."""
+    """Format a widget's information into a LLM-friendly string representation."""
     widget_str = ""
     widget_str += (
         f"uuid: {widget.uuid} <-- use this to retrieve the data for the widget\n"
@@ -300,16 +300,12 @@ def _render_widget(widget: Widget) -> str:
 
 
 def render_system_prompt(widget_collection: WidgetCollection | None = None) -> str:
-    """Renders the system prompt for the custom agent, which includes a list of available widgets."""
+    """Render the system prompt for the custom agent, which includes a list of available widgets."""
     widgets_prompt = "# Available Widgets\n\n"
-    # `primary` widgets are widgets that the user has manually selected
-    # and added to the custom agent on OpenBB Workspace.
     widgets_prompt += "## Primary Widgets (prioritize using these widgets when answering the user's query):\n\n"
     for widget in widget_collection.primary if widget_collection else []:
         widgets_prompt += _render_widget(widget)
 
-    # `secondary` widgets are widgets that are on the currently-active dashboard, but
-    # have not been added to the custom agent explicitly by the user.
     widgets_prompt += "\n## Secondary Widgets (use these widgets if the user's query is not answered by the primary widgets):\n\n"
     for widget in widget_collection.secondary if widget_collection else []:
         widgets_prompt += _render_widget(widget)
@@ -318,7 +314,7 @@ def render_system_prompt(widget_collection: WidgetCollection | None = None) -> s
 
 
 async def handle_widget_data(data: list[DataContent]) -> str:
-    """Formats the data retrieved from a widget into a LLM-friendly string representation."""
+    """Format the data retrieved from a widget into a LLM-friendly string representation."""
     result_str = "--- Data ---\n"
     for content in data:
         result_str += f"{content.content}\n"
@@ -339,24 +335,17 @@ async def get_widget_data(
         request.widgets.primary + request.widgets.secondary if request.widgets else []
     )
 
-    # Get the first widget that matches the UUID (there should be only one).
     matching_widgets = list(
         filter(lambda widget: str(widget.uuid) == widget_uuid, widgets)
     )
     widget = matching_widgets[0] if matching_widgets else None
 
-    # If we're unable to find the widget, let's let the LLM know.
     if not widget:
         yield f"Unable to retrieve data for widget with UUID: {widget_uuid} (it is not present on the dashboard)"  # noqa: E501
         return
 
-    # Yield the request to the front-end for the widget data.
-    # NB: You *must* yield using `agent.remote_data_request` from inside
-    # remote functions (i.e. those decorated with `@remote_function`).
     yield agent.remote_data_request(
         widget=widget,
-        # In this example we will just re-use the currently-set values of
-        # the widget parameters.
         input_arguments={param.name: param.current_value for param in widget.params},
     )
     return
@@ -386,7 +375,7 @@ async def query(request: QueryRequest) -> EventSourceResponse:
     openbb_agent = agent.OpenBBAgent(
         query_request=request,
         system_prompt="You are a helpful assistant that can answer questions and retrieve stout beers.",
-        functions=[get_widget_data],  # <-- add the function to the `functions` argument
+        functions=[get_widget_data],  # 👈 add the function to the `functions` argument
     )
 
     return EventSourceResponse(
