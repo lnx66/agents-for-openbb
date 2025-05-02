@@ -168,6 +168,7 @@ def capture_stream_response(event_stream: str) -> tuple[str, str]:
 
     captured_stream = ""
     event_name = ""
+    event_type = ""  # Initialize event_type
     lines = event_stream.split("\n")
     for line in lines:
         if line.startswith("event:"):
