@@ -7,13 +7,6 @@ Welcome to the example repository for integrating custom agents into the OpenBB 
 This repository provides everything you need to build and add your own custom
 agents that are compatible with the OpenBB Workspace.
 
-Here are a few common reasons why you might want to build your own agent:
-- You have a unique data source that you don't want to add as a custom integration to OpenBB.
-- You want to use a specific LLM.
-- You want to use a local LLM.
-- You want a agent that is self-hosted on your infrastructure.
-- You are running on-premise in a locked-down environment that doesn't allow data to leave your VPC.
-
 ## Features
 - [Streaming conversations](#basic-conversational-agent)
 - [Function calling](#local-function-calling)
@@ -21,21 +14,21 @@ Here are a few common reasons why you might want to build your own agent:
 - [Reasoning Steps / Status Updates](#reasoning-steps--status-updates)
 - [Citations](#citations)
 
+If you're looking to get started quickly, we suggest running one of the example
+agents included as part of this repository, and adding it as a custom copilot to
+the OpenBB Workspace (each example copilot includes instructions on how to run
+them). Cloning and modifying an example copilot is a great way get started
+building a custom agent.
 
 ## Introduction
 
-To integrate a custom agent that you can interact with from the OpenBB Workspace,
-you'll need to create a backend API that the OpenBB Workspace can make requests to.  
+There are a few common reasons why you might want to build your own agent:
+- You have a unique data source that you don't want to add as a custom integration to OpenBB.
+- You want to use a specific LLM.
+- You want to use a local LLM.
+- You want a agent that is self-hosted on your infrastructure.
+- You are running on-premise in a locked-down environment that doesn't allow data to leave your VPC.
 
-
-Your custom agent API will respond with Server-Sent Events
-([SSEs](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events)).
-
-**Note: If you're looking to get started
-quickly, we suggest running one of the example agents included as part of
-this repository, and adding it as a custom copilot to the OpenBB Workspace (each
-example copilot includes instructions on how to run them). Cloning and modifying
-an example copilot is a great way get started building a custom agent.**
 
 ## Examples
 If you prefer diving straight into code, we have a growing list of examples of
@@ -54,9 +47,22 @@ you are interested in a specific feature or use case.
 
 ## Usage
 
-We recommend using FastAPI to build your custom agent API. All examples and documentation will use FastAPI. If you are new to FastAPI, we recommend checking out the [FastAPI tutorial](https://fastapi.tiangolo.com/tutorial/).
+To integrate a custom agent that you can interact with from the OpenBB Workspace,
+you'll need to create a backend API that the OpenBB Workspace can make requests to. 
 
-### Basic conversational agent
+A custom agent consists of an API with two endpoints:
+
+- `/copilots.json` -- Describes your custom agent to the OpenBB Workspace
+- `/query` -- Receives requests from the OpenBB Workspace and responds with SSEs
+
+Your custom agent API must respond with Server-Sent Events
+([SSEs](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events)). 
+
+We highly recommend using FastAPI to build your custom agent API. All examples
+and documentation will use FastAPI. If you are new to FastAPI, we recommend
+checking out the [FastAPI tutorial](https://fastapi.tiangolo.com/tutorial/).
+
+### The simplest possible agent
 
 The most basic custom agent is capable only of chatting with the user.
 
@@ -66,7 +72,8 @@ First, let's set our OPENAI_API_KEY:
 export OPENAI_API_KEY=<your-openai-api-key>
 ```
 
-Now, let's create a basic FastAPI app that uses the `OpenBBAgent` to chat with the user:
+Now, let's create a basic FastAPI app that uses the `OpenBBAgent` class to chat
+with the user:
 
 ```python
 from fastapi import FastAPI
@@ -136,15 +143,6 @@ And add it to the OpenBB Workspace as a custom agent:
 https://github.com/user-attachments/assets/bd8daae2-6ef4-473e-abbc-cbb92fdec098
 
 You can now chat with your custom agent in the OpenBB Workspace.
-
-### What is a custom OpenBB Workspace agent?
-
-A custom agent consists of an API with two endpoints:
-
-1. `/copilots.json` - Describes your custom agent to the OpenBB Workspace
-2. `/query` - Receives requests from the OpenBB Workspace and responds with SSEs
-
-#### `agent.OpenBBAgent`
 
 The `agent.OpenBBAgent` object is responsible for handling the request from the
 OpenBB Workspace, and for streaming the response back to the OpenBB Workspace
@@ -428,27 +426,86 @@ the widget depending on the user query.
 A few important things to note:
 - The function must be an `async` function.
 - The function must accept the `request` argument, which will be passed into the function when it is called.
-- The function must be decorated with the `@remote_function_call` decorator.
-- In the `@remote_function_call` decorator, we must specify the `function` name that corresponds to the functions supported by the OpenBB Workspace. Currently only "get_widget_data" is supported.
-- It is recommended to specify an `output_formatter` function that will be used to format the output of the data retrieved from the widget, so that it can be passed back to the LLM in a readable format.
-- If an `output_formatter` is not specified, the
-result is dumped as a string and returned to the LLM.
+- The function must be decorated with `@remote_function_call`.
 - The function must yield the result of the `get_remote_data` function, which must specify the `widget` and `input_arguments` to retrieve data for.
+
+
+#### `@remote_function_call`
+The `@remote_function_call` decorator is used to specify that the function is
+capable of retrieving data from widgets on the OpenBB Workspace.
+
+The decorator must specify the `function` name that corresponds to the remote functions
+supported by the OpenBB Workspace. Currently only `"get_widget_data"` is supported.
+
+By default, the full data retrieved from the widget is dumped as a string and
+returned to the LLM. However, you can also optionally specify an
+`output_formatter` function that will be used to format the output of the data
+retrieved from the widget, so that it can be passed back to the LLM in a
+readable format. 
+
+The `output_formatter` function must accept a list of `DataContent` objects, and
+must return a string.
+
+Here's an example of a `DataContent` object with a single item and no extra citations:
+
+```python
+from common.models import DataContent, SingleDataContent, RawObjectDataFormat
+
+data_content_example = DataContent(
+    items=[
+        SingleDataContent(
+            content="<content of the widget data>",
+            data_format=RawObjectDataFormat(  # Could also be PdfDataFormat or ImageDataFormat
+                data_type="object",
+                parse_as="table",  # or "chart" or "text"
+                chart_params=None
+            ),
+            citable=True
+        )
+    ],
+    extra_citations=[]
+)
+```
+
+The `data_format` object is available as a hint on how to properly handle the widget data. The 
+`parse_as` field specifies whether the data should be treated as a table, chart, or text. To see the full list of possible `data_format`s, see the `DataFormat` model in the
+[common/models.py](https://github.com/OpenBB-finance/copilot-for-terminal-pro/blob/main/common/common/models.py)
+file.
+
+#### `remote_data_request`
+
+The decorated remote function must yield the result of the `remote_data_request`
+function, which must specify the `Widget` and `input_arguments` to retrieve data
+for. You can view the full schema of the `Widget` model in the [common/models.py](https://github.com/OpenBB-finance/copilot-for-terminal-pro/blob/main/common/common/models.py) file
+for.
+
+#### `request` 
 
 The `request` argument is the same `QueryRequest` object passed into the `query`
 endpoint. It contains the current conversation's messages, any explicitly-added
 context, information about widgets on the currently-active dashboard, and so on.
+
+This is useful to search for the widgets specified by the LLM, or use other
+pieces of the `request` during your function call. For example, we use the
+`request` argument in the `get_widget_data` function above to filter the widgets
+according to their UUIDs.
+
 You can view the full schema either by looking at the `QueryRequest` model in
 the
 [common/models.py](https://github.com/OpenBB-finance/copilot-for-terminal-pro/blob/main/common/common/models.py)
 file, or by inspecting the `QueryRequest` model in the Swagger UI of a custom
 agent (at `<your-custom-agent-url>/docs`, eg. `http://localhost:7777/docs`).
 
-### Priority vs. background widgets
-...
+### Widget Priority
+There are three types of widgets that are exposed to custom agents in the `QueryRequest` object via the `widgets` field:
 
-### Global or "extra" widgets
-...
+- Priority / primary widgets -- These are widgets that the user has manually and explicitly added to context.
+- Secondary widgets -- These are widgets that are on the currently-active dashboard, but have not been added to the custom agent explicitly by the user.
+- Extra widgets -- Any widgets that have been added to the OpenBB Workspace (whether they are visible on the currently-active dashboard or not).
+
+Currently, only priority and secondary widgets are exposed to custom agents. We are busy adding support for extra widgets.
+
+Consider the following dashboard:
 
 ### Reasoning steps / status updates
 
