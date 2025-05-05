@@ -9,6 +9,7 @@ from common.models import (
 
 import logging
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -17,7 +18,7 @@ async def cite_widget(
 ) -> AsyncGenerator[Citation, None]:
     data_source_requests = [
         DataSourceRequest(**data_source)
-        for data_source in function_call_result.input_arguments["data_sources"]
+        for data_source in function_call_result.input_arguments.get("data_sources", [])
     ]
     all_widgets = (
         request.widgets.primary + request.widgets.secondary if request.widgets else []
