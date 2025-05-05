@@ -86,7 +86,9 @@ class CopilotResponse:
         else:
             raise StopIteration
 
-    def _check_equals(self, event, content_contains: str | dict, ignore_case: bool = True):
+    def _check_equals(
+        self, event, content_contains: str | dict, ignore_case: bool = True
+    ):
         if isinstance(content_contains, str):
             if ignore_case:
                 assert content_contains.lower() in str(event.content).lower()

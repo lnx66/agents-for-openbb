@@ -13,6 +13,7 @@ agents that are compatible with the OpenBB Workspace.
 - [Retrieve data from widgets in OpenBB Workspace](#remote-function-calling-retrieving-widget-data-from-openbb-workspace)
 - [Reasoning Steps / Status Updates](#reasoning-steps--status-updates)
 - [Citations](#citations)
+- [Support for multiple LLM providers](#llm-configuration)
 
 For a quick start, run one of the included example agents and add it as a custom copilot to OpenBB Workspace (instructions included with each example). Cloning and modifying an existing example is the fastest way to build your own custom agent.
 
@@ -566,6 +567,58 @@ section of this README for an example).
 #### Custom citations
 
 Coming soon.
+
+## LLM Configuration
+
+### OpenAI
+By default, custom agents use the OpenAI API, and `gpt-4o` as the default model.
+This requires an OpenAI API key to be set in the `OPENAI_API_KEY` environment variable.
+
+To use a different model, set the `model` parameter in the `OpenBBAgent` constructor.
+
+```python
+openbb_agent = agent.OpenBBAgent(
+    ...
+    model="gpt-4o-mini",
+)
+```
+
+### Google Gemini
+
+Custom agents support both Google AI Studio and Vertex AI.
+
+**Google AI Studio**
+
+To use Google AI Studio, set the `GEMINI_API_KEY` environment variable, and specify the `chat_class` parameter in the `OpenBBAgent` constructor as `agent.GeminiChat`:
+
+```python
+from common import agent 
+
+...
+openbb_agent = agent.OpenBBAgent(
+    ...
+    chat_class=agent.GeminiChat,
+    model="gemini-2.0-flash-001",  # 👈 Specify the model to use (this is the default model)
+)
+```
+
+**Vertex AI**
+
+To use Vertex AI you must have the `gcloud CLI` installed and [authorized for Vertex AI](https://cloud.google.com/vertex-ai/docs/authentication#client-libs). Then, set the `vertex_ai` parameter in the `OpenBBAgent` constructor to `True` and specify the `project` and `location` parameters:
+
+```python
+from common import agent 
+
+...
+openbb_agent = agent.OpenBBAgent(
+    ...
+    chat_class=agent.GeminiChat,
+    model="gemini-2.0-flash-001", 
+    vertex_ai=True,  # 👈 Enable Vertex AI
+    project="your-project-id",  # 👈 Specify your GCP project ID
+    location="your-location",  # 👈 Specify your GCP location
+)
+```
 
 ### Widget Priority
 Custom agents receive three widget types via the `QueryRequest.widgets` field:

@@ -258,12 +258,26 @@ class GeminiChat:
         output_types: list[Any] | None = None,  # TODO: Implement this.
         functions: list[Callable] | None = None,
         model: str | None = None,
+        vertex_ai: bool = False,
+        project: str | None = None,
+        location: str | None = None,
     ):
         self._messages = messages
         self._last_message: AnyMessage | None = None
         self._output_types = output_types
         self._functions = functions
-        self._client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+        if vertex_ai:
+            if not project or not location:
+                raise ValueError(
+                    "project and location must be provided if vertex_ai is True"
+                )
+            self._client = genai.Client(
+                vertexai=vertex_ai,
+                project=project,
+                location=location,
+            )
+        else:
+            self._client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
         self._model = model or "gemini-2.0-flash"
 
     def _get_system_prompt(self, messages: list[AnyMessage]) -> str:
@@ -446,6 +460,7 @@ class OpenBBAgent:
         functions: list[Callable] | None = None,
         chat_class: type[Chat] | type[GeminiChat] | None = None,
         model: str | None = None,
+        **kwargs: Any,
     ):
         self.request = query_request
         self.widgets = query_request.widgets
@@ -456,6 +471,7 @@ class OpenBBAgent:
         self._chat: Chat | GeminiChat | None = None
         self._citations: CitationCollection | None = None
         self._messages: list[AnyMessage] = []
+        self._kwargs = kwargs
 
         if isinstance(self.chat_class, GeminiChat):
             self._model = self._model or "gemini-2.0-flash"
@@ -471,6 +487,7 @@ class OpenBBAgent:
             output_types=[AsyncStreamedResponse],
             functions=self.functions if self.functions else None,
             model=self._model,  # type: ignore[arg-type]
+            **self._kwargs,
         )
         async for event in self._execute(max_completions=max_completions):
             yield event.model_dump()

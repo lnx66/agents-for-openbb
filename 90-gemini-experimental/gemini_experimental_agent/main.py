@@ -1,6 +1,5 @@
-import json
 import logging
-from pathlib import Path
+import os
 from typing import AsyncGenerator
 
 from fastapi import FastAPI
@@ -45,7 +44,19 @@ app.add_middleware(
 def get_copilot_description():
     """Widgets configuration file for the OpenBB Terminal Pro"""
     return JSONResponse(
-        content=json.load(open((Path(__file__).parent.resolve() / "copilots.json")))
+        content={
+            "gemini_experimental": {
+                "name": "Gemini Experimental",
+                "description": "A copilot that uses Gemini as its LLM.",
+                "image": "https://github.com/OpenBB-finance/copilot-for-terminal-pro/assets/14093308/7da2a512-93b9-478d-90bc-b8c3dd0cabcf",
+                "endpoints": {"query": "http://localhost:7777/v1/query"},
+                "features": {
+                    "streaming": True,
+                    "widget-dashboard-select": True,
+                    "widget-dashboard-search": False,
+                },
+            }
+        }
     )
 
 
@@ -60,8 +71,14 @@ async def query(request: QueryRequest) -> EventSourceResponse:
     openbb_agent = agent.OpenBBAgent(
         query_request=request,
         system_prompt=render_system_prompt(widget_collection=request.widgets),
-        chat_class=agent.GeminiChat,
         functions=[get_widget_data],
+        chat_class=agent.GeminiChat,
+        model="gemini-2.0-flash-001",
+        # If using Google AI Studio instead of Vertex AI, comment out the lines
+        # below and make sure the GEMINI_API_KEY environment variable is set
+        vertex_ai=True,
+        project=os.environ["GCP_PROJECT_ID"],
+        location="us-central1",
     )
 
     # Stream the SSEs back to the client.

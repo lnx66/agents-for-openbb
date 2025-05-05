@@ -50,18 +50,56 @@ Here's how to get your copilot up and running:
 ### Prerequisites
 
 Ensure you have poetry, a tool for dependency management and packaging in
-Python, as well as your [Google AI Studio API key](https://aistudio.google.com/app/apikey).
+Python, and also one of the following:
+
+- [Google AI Studio API key](https://aistudio.google.com/app/apikey).
+- [Google Vertex AI API key](https://cloud.google.com/vertex-ai/docs/authentication#client-libs) and your machine must be authenticated with the `gcloud` CLI.
 
 ### Installation and Running
 
 1. Clone this repository to your local machine.
 
-2. Set the Gemini API key as an environment variable in your .bashrc or .zshrc file:
+2. Setup your environment for Google AI Studio or Vertex AI.
+
+#### Google AI Studio
+Set the Gemini API key as an environment variable in your .bashrc or .zshrc file:
 
     ``` sh
     # in .zshrc or .bashrc
     export GEMINI_API_KEY=<your-api-key>
     ```
+
+    Update the `main.py` file to not use Vertex AI:
+
+    ```python
+    # in main.py
+    openbb_agent = agent.OpenBBAgent(
+        query_request=request,
+        system_prompt=render_system_prompt(widget_collection=request.widgets),
+        functions=[get_widget_data],
+        chat_class=agent.GeminiChat,
+        model="gemini-2.0-flash-001",
+        # 👇 make sure these lines are commented out
+        # vertex_ai=True,
+        # project=os.environ["GCP_PROJECT_ID"],
+        # location="us-central1",
+    )
+    ```
+
+#### Vertex AI
+
+Set the `GCP_PROJECT_ID` environment variable in your .bashrc or .zshrc file:
+
+``` sh
+# in .zshrc or .bashrc
+export GCP_PROJECT_ID=<your-project-id>
+```
+
+Make sure you are authenticated with the `gcloud` CLI:
+
+``` sh
+gcloud auth application-default login
+```
 
 3. Install the necessary dependencies:
 
