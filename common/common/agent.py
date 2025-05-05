@@ -11,6 +11,7 @@ from magentic import (
 )
 from google import genai
 from common.models import (
+    ClientFunctionCallError,
     QueryRequest,
     Citation,
     CitationCollection,
@@ -78,7 +79,7 @@ def reasoning_step(
 
 class WrappedFunctionProtocol(Protocol):
     async def execute_post_processing(
-        self, data: list[DataContent | DataFileReferences]
+        self, data: list[DataContent | DataFileReferences | ClientFunctionCallError]
     ) -> str: ...
     def execute_callbacks(
         self,
@@ -144,7 +145,8 @@ def remote_function_call(
                             await callback(function_call_result, self.request)
 
             async def execute_post_processing(
-                self, data: list[DataContent | DataFileReferences]
+                self,
+                data: list[DataContent | DataFileReferences | ClientFunctionCallError],
             ) -> str:
                 if self.post_process_function:
                     return await self.post_process_function(data)
