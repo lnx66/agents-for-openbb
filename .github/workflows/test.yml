@@ -199,3 +199,33 @@ jobs:
         run: |
           cd 21-reasoning-copilot-deepseek-r1
           poetry run pytest tests
+  gemini-experimental:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11"]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Install and authenticate gcloud CLI
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.GCP_SERVICE_ACCOUNT_CREDENTIALS }}'
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: 1.8.3
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          poetry install
+      - name: Run Pytest
+        run: |
+          cd 90-gemini-experimental
+          poetry run pytest tests
