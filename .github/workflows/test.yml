@@ -23,7 +23,6 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-          cd 01-simple-copilot
           python -m pip install --upgrade pip
           poetry install
       - name: Run Pytest
@@ -52,7 +51,6 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-          cd 02-simple-copilot-local-function-calling
           python -m pip install --upgrade pip
           poetry install
       - name: Run Pytest
@@ -81,7 +79,6 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-          cd 03-simple-copilot-reasoning-steps
           python -m pip install --upgrade pip
           poetry install
       - name: Run Pytest
@@ -110,7 +107,6 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-          cd 04-simple-copilot-openbb-function-calling
           python -m pip install --upgrade pip
           poetry install
       - name: Run Pytest
@@ -139,7 +135,6 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-          cd 05-simple-copilot-openbb-citations
           python -m pip install --upgrade pip
           poetry install
       - name: Run Pytest
@@ -168,7 +163,6 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-          cd 20-simple-copilot-deepseek-v3
           python -m pip install --upgrade pip
           poetry install
       - name: Run Pytest
@@ -197,7 +191,6 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-          cd 21-reasoning-copilot-deepseek-r1
           python -m pip install --upgrade pip
           poetry install
       - name: Run Pytest

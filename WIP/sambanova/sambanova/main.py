@@ -19,7 +19,7 @@ from dotenv import load_dotenv
 from common.models import (
     FunctionCallSSE,
     FunctionCallSSEData,
-    AgentQueryRequest,
+    QueryRequest,
     LlmClientFunctionCallResult,
     LlmFunctionCall,
     LlmMessage,
@@ -208,7 +208,7 @@ def do_completion(
 
 
 @app.post("/v1/query")
-async def query(request: AgentQueryRequest) -> EventSourceResponse:
+async def query(request: QueryRequest) -> EventSourceResponse:
     """Query the Copilot."""
 
     logger.info(f"Received query: {request}")
