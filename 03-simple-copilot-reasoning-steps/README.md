@@ -86,6 +86,7 @@ poetry install --no-root
 4.Start the API server:
 
 ``` sh
+cd 03-simple-copilot-reasoning-steps
 poetry run uvicorn simple_copilot_rs.main:app --port 7777 --reload
 ```
 

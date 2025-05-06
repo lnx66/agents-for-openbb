@@ -70,6 +70,7 @@ OPENROUTER_API_KEY=<your-api-key>
 
 5. Run the development server:
 ```sh
+cd 70-portfolio-commentary
 poetry run uvicorn portfolio_commentary.main:app --reload --port 7777
 ```
 

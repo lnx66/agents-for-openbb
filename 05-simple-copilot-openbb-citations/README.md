@@ -135,6 +135,7 @@ Python, as well as your OpenAI API key.
 3. Install the necessary dependencies:
 
 ``` sh
+cd 05-simple-copilot-openbb-citations
 poetry install --no-root
 ```
 
