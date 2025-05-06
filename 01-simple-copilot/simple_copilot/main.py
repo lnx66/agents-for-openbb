@@ -1,6 +1,3 @@
-import json
-from pathlib import Path
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -18,9 +15,8 @@ load_dotenv(".env")
 app = FastAPI()
 
 origins = [
-    "http://localhost:1420",
-    "https://pro.openbb.dev",
     "https://pro.openbb.co",
+    "https://pro.openbb.dev",
 ]
 
 app.add_middleware(
@@ -34,9 +30,16 @@ app.add_middleware(
 
 @app.get("/copilots.json")
 def get_copilot_description():
-    """Widgets configuration file for the OpenBB Terminal Pro"""
     return JSONResponse(
-        content=json.load(open((Path(__file__).parent.resolve() / "copilots.json")))
+        content={
+            "simple_copilot": {
+                "name": "Simple Copilot",
+                "description": "A simple copilot that can answer questions.",
+                "image": "https://github.com/OpenBB-finance/copilot-for-terminal-pro/assets/14093308/7da2a512-93b9-478d-90bc-b8c3dd0cabcf",
+                "endpoints": {"query": "http://localhost:7777/v1/query"},
+                "features": {"streaming": True},
+            }
+        }
     )
 
 

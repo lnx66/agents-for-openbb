@@ -34,17 +34,6 @@ class RoleEnum(str, Enum):
     tool = "tool"
 
 
-class BaseSSE(BaseModel):
-    event: Any
-    data: Any
-
-    def model_dump(self, *args, **kwargs) -> dict:
-        return {
-            "event": self.event,
-            "data": self.data.model_dump_json(exclude_none=True),
-        }
-
-
 class ChartParameters(BaseModel):
     chartType: Literal["line", "bar", "scatter"]
     xKey: str
@@ -162,17 +151,6 @@ class Citation(BaseModel):
                     if key.lower() in _exclude_fields:
                         detail.pop(key, None)
         return values
-
-
-class CitationCollection(BaseModel):
-    citations: list[Citation]
-
-
-class CitationCollectionSSE(BaseSSE):
-    event: Literal["copilotCitationCollection"] = "copilotCitationCollection"
-    # We use a CitationCollection instead of a list because a pydantic model has
-    # a .model_dump_json()
-    data: CitationCollection
 
 
 class LlmFunctionCall(BaseModel):
@@ -315,8 +293,8 @@ class LlmClientFunctionCallResultMessage(BaseModel):
 
     role: RoleEnum = RoleEnum.tool
     function: str = Field(description="The name of the called function.")
-    input_arguments: dict[str, Any] | None = Field(
-        default=None, description="The input arguments passed to the function"
+    input_arguments: dict[str, Any] = Field(
+        default_factory=dict, description="The input arguments passed to the function"
     )
     data: list[DataContent | DataFileReferences | ClientFunctionCallError] = Field(
         description="The content of the function call. Each element corresponds to the result of a different data source."  # noqa: E501
@@ -347,8 +325,8 @@ class QueryRequest(BaseModel):
     context: list[RawContext] | None = Field(
         default=None, description="Additional context."
     )
-    widgets: WidgetCollection | None = Field(
-        default=None,
+    widgets: WidgetCollection = Field(
+        default_factory=WidgetCollection,
         description="A dictionary containing primary, secondary, and extra widgets.",
     )
 
@@ -378,6 +356,26 @@ class FunctionCallResponse(BaseModel):
     )
 
 
+class BaseSSE(BaseModel):
+    event: Any
+    data: Any
+
+    def model_dump(self, *args, **kwargs) -> dict:
+        return {
+            "event": self.event,
+            "data": self.data.model_dump_json(exclude_none=True),
+        }
+
+
+class MessageChunkSSEData(BaseModel):
+    delta: str
+
+
+class MessageChunkSSE(BaseSSE):
+    event: Literal["copilotMessageChunk"] = "copilotMessageChunk"
+    data: MessageChunkSSEData
+
+
 class FunctionCallSSEData(BaseModel):
     function: Literal["get_widget_data"]
     input_arguments: dict
@@ -387,6 +385,17 @@ class FunctionCallSSEData(BaseModel):
 class FunctionCallSSE(BaseSSE):
     event: Literal["copilotFunctionCall"] = "copilotFunctionCall"
     data: FunctionCallSSEData
+
+
+class CitationCollection(BaseModel):
+    citations: list[Citation]
+
+
+class CitationCollectionSSE(BaseSSE):
+    event: Literal["copilotCitationCollection"] = "copilotCitationCollection"
+    # We use a CitationCollection instead of a list because a pydantic model has
+    # a .model_dump_json()
+    data: CitationCollection
 
 
 class ClientArtifact(BaseModel):
