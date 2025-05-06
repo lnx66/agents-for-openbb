@@ -226,6 +226,8 @@ jobs:
           python -m pip install --upgrade pip
           poetry install
       - name: Run Pytest
+        env:
+          GCP_PROJECT_ID: ${{ env.GCP_PROJECT_ID }}
         run: |
           cd 90-gemini-experimental
           poetry run pytest tests
