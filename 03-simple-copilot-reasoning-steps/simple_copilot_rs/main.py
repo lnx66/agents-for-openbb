@@ -42,7 +42,7 @@ def get_copilot_description():
     """Widgets configuration file for the OpenBB Terminal Pro"""
     return JSONResponse(
         content={
-            "simple_copilot": {
+            "simple_copilot_rs": {
                 "name": "Simple Copilot with Reasoning Steps",
                 "description": "A simple copilot that can answer questions, execute internal function calls, and return reasoning steps.",
                 "image": "https://github.com/OpenBB-finance/copilot-for-terminal-pro/assets/14093308/7da2a512-93b9-478d-90bc-b8c3dd0cabcf",

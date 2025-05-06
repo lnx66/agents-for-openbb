@@ -326,7 +326,7 @@ class QueryRequest(BaseModel):
         default=None, description="Additional context."
     )
     widgets: WidgetCollection = Field(
-        default=WidgetCollection(primary=[], secondary=[], extra=[]),
+        default_factory=WidgetCollection,
         description="A dictionary containing primary, secondary, and extra widgets.",
     )
 

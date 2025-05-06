@@ -257,7 +257,7 @@ class GeminiChat:
         messages: list[AnyMessage],
         output_types: list[Any] | None = None,  # TODO: Implement this.
         functions: list[Callable] | None = None,
-        model: str | None = None,
+        model: str = "gemini-2.0-flash",
         vertex_ai: bool = False,
         project: str | None = None,
         location: str | None = None,
@@ -266,6 +266,8 @@ class GeminiChat:
         self._last_message: AnyMessage | None = None
         self._output_types = output_types
         self._functions = functions
+        self._model = model
+
         if vertex_ai:
             if not project or not location:
                 raise ValueError(
@@ -278,7 +280,6 @@ class GeminiChat:
             )
         else:
             self._client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
-        self._model = model or "gemini-2.0-flash"
 
     def _get_system_prompt(self, messages: list[AnyMessage]) -> str:
         return next(m for m in messages if isinstance(m, SystemMessage)).content
