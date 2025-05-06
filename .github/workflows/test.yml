@@ -227,7 +227,7 @@ jobs:
           poetry install
       - name: Run Pytest
         env:
-          GCP_PROJECT_ID: ${{ env.GCP_PROJECT_ID }}
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
         run: |
           cd 90-gemini-experimental
           poetry run pytest tests
