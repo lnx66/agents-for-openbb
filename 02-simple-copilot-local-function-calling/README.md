@@ -76,6 +76,7 @@ poetry install --no-root
 4.Start the API server:
 
 ``` sh
+cd 02-simple-copilot-local-function-calling
 poetry run uvicorn simple_copilot_fc.main:app --port 7777 --reload
 ```
 
