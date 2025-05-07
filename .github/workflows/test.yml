@@ -1,9 +1,12 @@
 name: Test Copilots
 
-on: [pull_request]
-
+on: 
+  workflow_dispatch:
+  issue_comment:
+    types: [created, edited]
 jobs:
   simple-copilot:
+    if: github.event.issue.pull_request && contains(github.event.comment.body, '/run-tests')
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -32,6 +35,7 @@ jobs:
           cd 01-simple-copilot
           poetry run pytest tests
   simple-copilot-fc:
+    if: github.event.issue.pull_request && contains(github.event.comment.body, '/run-tests')
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -60,6 +64,7 @@ jobs:
           cd 02-simple-copilot-local-function-calling
           poetry run pytest tests
   simple-copilot-rs:
+    if: github.event.issue.pull_request && contains(github.event.comment.body, '/run-tests')
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -88,6 +93,7 @@ jobs:
           cd 03-simple-copilot-reasoning-steps
           poetry run pytest tests
   simple-copilot-rfc:
+    if: github.event.issue.pull_request && contains(github.event.comment.body, '/run-tests')
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -116,6 +122,7 @@ jobs:
           cd 04-simple-copilot-openbb-function-calling
           poetry run pytest tests
   simple-copilot-openbb-citations:
+    if: github.event.issue.pull_request && contains(github.event.comment.body, '/run-tests')
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -144,6 +151,7 @@ jobs:
           cd 05-simple-copilot-openbb-citations
           poetry run pytest tests
   simple-copilot-pdf-handling:
+    if: github.event.issue.pull_request && contains(github.event.comment.body, '/run-tests')
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -172,6 +180,7 @@ jobs:
           cd 06-simple-copilot-pdf-handling
           poetry run pytest tests
   simple-copilot-deepseek-v3:
+    if: github.event.issue.pull_request && contains(github.event.comment.body, '/run-tests')
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -200,6 +209,7 @@ jobs:
           cd 20-simple-copilot-deepseek-v3
           poetry run pytest tests
   reasoning-copilot-deepseek-r1:
+    if: github.event.issue.pull_request && contains(github.event.comment.body, '/run-tests')
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -228,6 +238,7 @@ jobs:
           cd 21-reasoning-copilot-deepseek-r1
           poetry run pytest tests
   gemini-experimental:
+    if: github.event.issue.pull_request && contains(github.event.comment.body, '/run-tests')
     runs-on: ubuntu-latest
     strategy:
       matrix:
