@@ -3,6 +3,7 @@ from typing import AsyncGenerator
 from common.agent import reasoning_step, get_remote_data, remote_function_call
 from common.callbacks import cite_widget
 from common.models import (
+    DataFileReferences,
     PdfDataFormat,
     QueryRequest,
     DataContent,
@@ -36,7 +37,7 @@ async def _get_url_pdf_text(data: SingleFileReference) -> str:
         return document_text
 
 
-async def handle_widget_data(data: list[DataContent]) -> str:
+async def handle_widget_data(data: list[DataContent | DataFileReferences]) -> str:
     result_str = "--- Data ---\n"
     for result in data:
         for item in result.items:
