@@ -1,8 +1,6 @@
-import io
 import json
 from unittest import mock
 from fastapi.testclient import TestClient
-import pdfplumber
 from simple_copilot_pdf_handling.main import app
 import pytest
 from pathlib import Path
@@ -145,6 +143,7 @@ def test_query_completes_remote_function_call_with_citation():
         )
     )
 
+
 def test_query_completes_remote_function_call_with_citation_pdf_url():
     test_payload_path = (
         Path(__file__).parent.parent.parent
@@ -156,7 +155,9 @@ def test_query_completes_remote_function_call_with_citation_pdf_url():
     with open(Path(__file__).parent / "openbb_story.pdf", "rb") as pdf:
         pdf_content = pdf.read()
 
-    with mock.patch("simple_copilot_pdf_handling.functions._download_file", return_value=pdf_content):
+    with mock.patch(
+        "simple_copilot_pdf_handling.functions._download_file", return_value=pdf_content
+    ):
         response = test_client.post("/v1/query", json=test_payload)
 
     assert response.status_code == 200
@@ -174,9 +175,7 @@ def test_query_completes_remote_function_call_with_citation_pdf_url():
                             "type": "widget",
                             "origin": "openbb",
                             "widget_id": "openbb_story",
-                            "metadata": {
-                                "input_args": {}
-                            },
+                            "metadata": {"input_args": {}},
                             "citable": True,
                         },
                         "details": [
