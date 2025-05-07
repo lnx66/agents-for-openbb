@@ -2,7 +2,7 @@
     "messages": [
         {
             "role": "human",
-            "content": "Fetch the latest news and give me the sentiment for each article headline between -1 and 1."
+            "content": "Fetch the latest news from the widget and then give me the sentiment for each article headline between -1 and 1. Just do it."
         }
     ],
     "widgets": {

@@ -1,7 +1,17 @@
 import inspect
 import json
-from magentic import Chat, AsyncStreamedStr, FunctionCall
+import os
+from magentic import (
+    AsyncStreamedResponse,
+    Chat,
+    AsyncStreamedStr,
+    FunctionCall,
+    OpenaiChatModel,
+    ParallelFunctionCall,
+)
+from google import genai
 from common.models import (
+    ClientFunctionCallError,
     QueryRequest,
     Citation,
     CitationCollection,
@@ -14,6 +24,8 @@ from common.models import (
     LlmClientFunctionCallResultMessage,
     LlmFunctionCall,
     LlmClientMessage,
+    MessageChunkSSE,
+    MessageChunkSSEData,
     StatusUpdateSSE,
     StatusUpdateSSEData,
     Widget,
@@ -51,13 +63,6 @@ def sanitize_message(message: str) -> str:
     return cleaned_message
 
 
-async def create_message_stream(
-    content: AsyncStreamedStr,
-) -> AsyncGenerator[dict, None]:
-    async for chunk in content:
-        yield {"event": "copilotMessageChunk", "data": json.dumps({"delta": chunk})}
-
-
 def reasoning_step(
     event_type: Literal["INFO", "WARNING", "ERROR"],
     message: str,
@@ -74,7 +79,7 @@ def reasoning_step(
 
 class WrappedFunctionProtocol(Protocol):
     async def execute_post_processing(
-        self, data: list[DataContent | DataFileReferences]
+        self, data: list[DataContent | DataFileReferences | ClientFunctionCallError]
     ) -> str: ...
     def execute_callbacks(
         self,
@@ -140,7 +145,8 @@ def remote_function_call(
                             await callback(function_call_result, self.request)
 
             async def execute_post_processing(
-                self, data: list[DataContent | DataFileReferences]
+                self,
+                data: list[DataContent | DataFileReferences | ClientFunctionCallError],
             ) -> str:
                 if self.post_process_function:
                     return await self.post_process_function(data)
@@ -245,32 +251,247 @@ async def _process_messages_openai(
     return chat_messages
 
 
+class GeminiChat:
+    def __init__(
+        self,
+        messages: list[AnyMessage],
+        output_types: list[Any] | None = None,  # TODO: Implement this.
+        functions: list[Callable] | None = None,
+        model: str = "gemini-2.0-flash",
+        vertex_ai: bool = False,
+        project: str | None = None,
+        location: str | None = None,
+    ):
+        self._messages = messages
+        self._last_message: AnyMessage | None = None
+        self._output_types = output_types
+        self._functions = functions
+        self._model = model
+
+        if vertex_ai:
+            if not project or not location:
+                raise ValueError(
+                    "project and location must be provided if vertex_ai is True"
+                )
+            self._client = genai.Client(
+                vertexai=vertex_ai,
+                project=project,
+                location=location,
+            )
+        else:
+            self._client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+
+    def _get_system_prompt(self, messages: list[AnyMessage]) -> str:
+        return next(m for m in messages if isinstance(m, SystemMessage)).content
+
+    async def _convert_messages(
+        self, messages: list[AnyMessage]
+    ) -> list[genai.types.Content]:
+        contents: list[genai.types.Content] = []
+        for message in messages:
+            if isinstance(message, UserMessage):
+                contents.append(
+                    genai.types.Content(
+                        role="user", parts=[genai.types.Part(text=message.content)]
+                    )
+                )
+            elif isinstance(message, AssistantMessage):
+                if isinstance(message.content, str):
+                    contents.append(
+                        genai.types.Content(
+                            role="model", parts=[genai.types.Part(text=message.content)]
+                        )
+                    )
+                elif isinstance(message.content, AsyncStreamedResponse):
+                    async for item in message.content:
+                        if isinstance(item, FunctionCall):
+                            contents.append(
+                                genai.types.Content(
+                                    role="model",
+                                    parts=[
+                                        genai.types.Part(
+                                            function_call=genai.types.FunctionCall(
+                                                name=item.function.__name__,
+                                                args=item.arguments,
+                                            )
+                                        )
+                                    ],
+                                )
+                            )
+
+                elif isinstance(message.content, FunctionCall):
+                    contents.append(
+                        genai.types.Content(
+                            role="model",
+                            parts=[
+                                genai.types.Part(
+                                    function_call=genai.types.FunctionCall(
+                                        name=message.content.function.__name__,
+                                        args=message.content.arguments,
+                                    )
+                                )
+                            ],
+                        )
+                    )
+                elif isinstance(message.content, ParallelFunctionCall):
+                    for function_call in message.content:
+                        contents.append(
+                            genai.types.Content(
+                                role="model",
+                                parts=[
+                                    genai.types.Part(
+                                        function_call=genai.types.FunctionCall(
+                                            name=function_call.function.__name__,
+                                            args=function_call.arguments,
+                                        )
+                                    )
+                                ],
+                            )
+                        )
+            elif isinstance(message, FunctionResultMessage):
+                contents.append(
+                    genai.types.Content(
+                        role="user",
+                        parts=[
+                            genai.types.Part(
+                                function_response=genai.types.FunctionResponse(
+                                    name=message.function_call.function.__name__,
+                                    response={"output": message.content},
+                                )
+                            )
+                        ],
+                    )
+                )
+        return contents
+
+    def _get_function(self, function_name: str) -> Callable:
+        for function in self._functions if self._functions else []:
+            if function.__name__ == function_name:
+                return function
+        raise ValueError(f"Function not found: {function_name}")
+
+    def add_message(self, message: AnyMessage) -> "GeminiChat":
+        self._messages.append(message)
+        return self
+
+    def _prepare_tools(
+        self, functions: list[Callable] | None
+    ) -> list[genai.types.Tool] | None:
+        from magentic.chat_model.function_schema import FunctionCallFunctionSchema
+
+        if not functions:
+            return None
+        function_declarations: list[genai.types.FunctionDeclaration] = []
+        for function in functions:
+            schema = FunctionCallFunctionSchema(function)
+            function_declarations.append(
+                genai.types.FunctionDeclaration(
+                    name=schema.name,
+                    description=schema.description,
+                    parameters=genai.types.Schema(**schema.parameters),
+                )
+            )
+        return [genai.types.Tool(function_declarations=function_declarations)]
+
+    async def asubmit(self) -> "GeminiChat":
+        stream = await self._client.aio.models.generate_content_stream(
+            model=self._model,
+            contents=await self._convert_messages(self._messages),  # type: ignore[arg-type]
+            config=genai.types.GenerateContentConfig(
+                system_instruction=self._get_system_prompt(self._messages),
+                tools=self._prepare_tools(self._functions),  # type: ignore[arg-type]
+                automatic_function_calling=genai.types.AutomaticFunctionCallingConfig(
+                    disable=True
+                ),
+            ),
+        )
+
+        async def async_streamed_response() -> (
+            AsyncGenerator[FunctionCall | AsyncStreamedStr, None]
+        ):
+            async for event in stream:
+                if function_calls := event.function_calls:
+                    for function_call in function_calls:
+                        yield FunctionCall(
+                            function=self._get_function(function_call.name or ""),
+                            **(function_call.args or {}),
+                        )
+                elif text := event.text:
+
+                    async def async_streamed_str() -> AsyncGenerator[str, None]:
+                        # Need to field the first chunk (it's not in the stream)
+                        yield text
+                        async for event in stream:
+                            if event.text:
+                                yield event.text
+                            if (
+                                event.candidates
+                                and event.candidates[0].finish_reason == "STOP"
+                            ):
+                                if grounding_metadata := event.candidates[
+                                    0
+                                ].grounding_metadata:
+                                    if (
+                                        grounding_chunks
+                                        := grounding_metadata.grounding_chunks
+                                    ):
+                                        yield "\n\nSources:\n"
+                                        for grounding_chunk in grounding_chunks:
+                                            yield "<br>"
+                                            if web := grounding_chunk.web:
+                                                yield f"<a href='{web.uri}'>{web.title}</a>"
+
+                    yield AsyncStreamedStr(async_streamed_str())
+
+        self.add_message(
+            AssistantMessage(content=AsyncStreamedResponse(async_streamed_response()))
+        )
+        return self
+
+    @property
+    def last_message(self) -> AnyMessage:
+        return self._messages[-1]
+
+
 class OpenBBAgent:
     def __init__(
         self,
         query_request: QueryRequest,
         system_prompt: str,
         functions: list[Callable] | None = None,
+        chat_class: type[Chat] | type[GeminiChat] | None = None,
+        model: str | None = None,
+        **kwargs: Any,
     ):
         self.request = query_request
         self.widgets = query_request.widgets
         self.system_prompt = system_prompt
         self.functions = functions
-        self._chat: Chat | None = None
+        self.chat_class = chat_class or Chat
+        self._model: str | OpenaiChatModel | None = model
+        self._chat: Chat | GeminiChat | None = None
         self._citations: CitationCollection | None = None
         self._messages: list[AnyMessage] = []
+        self._kwargs = kwargs
+
+        if isinstance(self.chat_class, GeminiChat):
+            self._model = self._model or "gemini-2.0-flash"
+        elif isinstance(self.chat_class, Chat):
+            self._model = OpenaiChatModel(model=self._model or "gpt-4o")
 
     async def run(self, max_completions: int = 10) -> AsyncGenerator[dict, None]:
         self._messages = await self._handle_request()
         self._citations = await self._handle_callbacks()
 
-        self._chat = Chat(
+        self._chat = self.chat_class(
             messages=self._messages,
-            output_types=[AsyncStreamedStr, FunctionCall],
+            output_types=[AsyncStreamedResponse],
             functions=self.functions if self.functions else None,
+            model=self._model,  # type: ignore[arg-type]
+            **self._kwargs,
         )
         async for event in self._execute(max_completions=max_completions):
-            yield event
+            yield event.model_dump()
 
         if self._citations.citations:
             yield CitationCollectionSSE(data=self._citations).model_dump()
@@ -279,19 +500,17 @@ class OpenBBAgent:
         if not self.functions:
             return CitationCollection(citations=[])
         citations: list[Citation] = []
-        for message in self.request.messages:
-            if isinstance(message, LlmClientFunctionCallResultMessage):
-                wrapped_function = get_wrapped_function(
-                    function_name=message.extra_state.get(
-                        "_locally_bound_function", ""
-                    ),
-                    functions=self.functions,
-                )
-                async for event in wrapped_function.execute_callbacks(  # type: ignore
-                    request=self.request, function_call_result=message
-                ):
-                    if isinstance(event, Citation):
-                        citations.append(event)
+
+        if isinstance(self.request.messages[-1], LlmClientFunctionCallResultMessage):
+            wrapped_function = get_wrapped_function(
+                function_name=self.request.messages[-1].function,
+                functions=self.functions,
+            )
+            async for event in wrapped_function.execute_callbacks(  # type: ignore
+                request=self.request, function_call_result=self.request.messages[-1]
+            ):
+                if isinstance(event, Citation):
+                    citations.append(event)
         return CitationCollection(citations=citations)
 
     async def _handle_request(self) -> list[AnyMessage]:
@@ -337,44 +556,67 @@ class OpenBBAgent:
                     raise ValueError(f"Unsupported message type: {message}")
         return chat_messages
 
-    async def _execute(self, max_completions: int) -> AsyncGenerator[dict, None]:
+    async def _handle_text_stream(
+        self, stream: AsyncStreamedStr
+    ) -> AsyncGenerator[MessageChunkSSE, None]:
+        self._chat = cast(Chat | GeminiChat, self._chat)
+        async for chunk in stream:
+            yield MessageChunkSSE(data=MessageChunkSSEData(delta=chunk))
+
+    async def _handle_function_call(
+        self, function_call: FunctionCall
+    ) -> AsyncGenerator[FunctionCallSSE | StatusUpdateSSE, None]:
+        self._chat = cast(Chat | GeminiChat, self._chat)
+        function_call_result: str = ""
+
+        if not isinstance(self._chat.last_message, AssistantMessage):
+            raise ValueError("Last message is not an assistant message")
+
+        # We sneak in the request as extra state.
+        function_call.function.request = self.request
+
+        # Execute the function.
+        async for event in function_call():
+            # Yield reasoning steps.
+            if isinstance(event, StatusUpdateSSE):
+                yield event
+            # Or an SSE to execute a function on the client-side.
+            elif isinstance(event, FunctionCallSSE):
+                yield event
+                return
+            # Otherwise, append to the function call result.
+            else:
+                function_call_result += str(event)
+        self._chat = self._chat.add_message(
+            FunctionResultMessage(
+                content=function_call_result,
+                function_call=function_call,
+            )
+        )
+
+    async def _execute(
+        self, max_completions: int
+    ) -> AsyncGenerator[MessageChunkSSE | FunctionCallSSE | StatusUpdateSSE, None]:
         completion_count = 0
         # We set a limit to avoid infinite loops.
         while completion_count < max_completions:
             completion_count += 1
-            self._chat = await cast(Chat, self._chat).asubmit()
+            # TODO: Use a protocol for this.
+            self._chat = await cast(Chat | GeminiChat, self._chat).asubmit()
             # Handle a streamed text response.
-            if isinstance(self._chat.last_message.content, AsyncStreamedStr):
-                async for event in create_message_stream(
-                    self._chat.last_message.content
-                ):
-                    yield event
-                return
+            event: MessageChunkSSE | FunctionCallSSE | StatusUpdateSSE | None = None
 
-            # Handle a function call.
-            elif isinstance(self._chat.last_message.content, FunctionCall):
-                function_call_result: str = ""
-
-                # We sneak in the request as extra state.
-                self._chat.last_message.content._function.request = self.request  # type: ignore[attr-defined]
-                # Execute the function.
-                async for event in self._chat.last_message.content():
-                    # Yield reasoning steps.
-                    if isinstance(event, StatusUpdateSSE):
-                        yield event.model_dump()
-                    # Or an SSE to execute a function on the client-side.
-                    elif isinstance(event, FunctionCallSSE):
-                        yield event.model_dump()
+            if isinstance(self._chat.last_message.content, AsyncStreamedResponse):
+                async for item in self._chat.last_message.content:
+                    if isinstance(item, AsyncStreamedStr):
+                        async for event in self._handle_text_stream(item):
+                            yield event
                         return
-                    # Otherwise, append to the function call result.
-                    else:
-                        function_call_result += str(event)
-                self._chat = self._chat.add_message(
-                    FunctionResultMessage(
-                        content=function_call_result,
-                        function_call=self._chat.last_message.content,
-                    )
-                )
+                    elif isinstance(item, FunctionCall):
+                        async for event in self._handle_function_call(item):
+                            yield event
+                            if isinstance(event, FunctionCallSSE):
+                                return
 
 
 async def run_openrouter_agent(

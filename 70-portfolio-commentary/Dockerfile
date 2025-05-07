@@ -12,7 +12,7 @@ RUN pip install --no-cache-dir fastapi uvicorn[standard] python-dotenv httpx sse
 
 # Copy the portfolio commentary application first
 COPY ./portfolio_commentary /app/portfolio_commentary
-COPY ./pyproject.toml ./poetry.lock* /app/
+COPY ../pyproject.toml ./poetry.lock* /app/
 COPY .env /app/.env
 
 # Copy the common package - place it where Poetry expects it

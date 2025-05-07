@@ -139,6 +139,7 @@ poetry install --no-root
 4.Start the API server:
 
 ``` sh
+cd 04-simple-copilot-openbb-function-calling
 poetry run uvicorn simple_copilot_rfc.main:app --port 7777 --reload
 ```
 
