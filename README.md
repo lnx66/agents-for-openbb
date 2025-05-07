@@ -36,8 +36,10 @@ custom agents in this repository, varying in complexity and features:
 - [A simple agent that yields reasoning steps to OpenBB Workspace](./03-simple-copilot-reasoning-steps)
 - [A simple agent that uses remote function calling to retrieve data from OpenBB Workspace](./04-simple-copilot-openbb-function-calling)
 - [A simple agent that can retrieve data from OpenBB Workspace and produce citations](./05-simple-copilot-openbb-citations)
+- [A simple agent that can retrieve data from OpenBB Workspace and handle PDF files](./06-simple-copilot-pdf-handling)
 - [A simple agent using DeepSeek v3](./20-simple-copilot-deepseek-v3)
 - [A reasoning agent using DeepSeek R1](./21-reasoning-copilot-deepseek-r1)
+- [An experiment Google Gemini agent](./90-gemini-experimental)
 
 These examples are a good starting point for building your own custom agent if
 you are interested in a specific feature or use case.

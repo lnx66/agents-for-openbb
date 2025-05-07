@@ -1,0 +1,61 @@
+{
+    "messages": [
+        {
+            "role": "human",
+            "content": "Summarize the contents of the PDF file in 2 sentences. Give the name and author."
+        },
+        {
+            "role": "ai",
+            "content": "{\"function\":\"get_widget_data\",\"input_arguments\":{\"data_sources\":[{\"widget_uuid\":\"123e4567-e89b-12d3-a456-426614174000\",\"origin\":\"openbb\",\"id\":\"openbb_story\",\"input_args\":{}}]}}"
+        },
+        {
+            "role": "tool",
+            "function": "get_widget_data",
+            "input_arguments": {
+                "data_sources": [
+                    {
+                        "widget_uuid": "123e4567-e89b-12d3-a456-426614174000",
+                        "origin": "OpenBB API",
+                        "id": "openbb_story",
+                        "input_args": {}
+                    }
+                ]
+            },
+            "data": [
+                {
+                    "items": [
+                        {
+                            "url": "https://some-url.com/openbb_story.pdf",
+                            "data_format": {
+                                "data_type": "pdf",
+                                "filename": "openbb_story.pdf"
+                            }
+                        }
+                    ]
+                }
+            ],
+            "extra_state": {
+                "copilot_function_call_arguments": {
+                    "widget_uuid": "123e4567-e89b-12d3-a456-426614174000"
+                },
+                "_locally_bound_function": "get_widget_data"
+            }
+        }
+    ],
+    "widgets": {
+        "primary": [
+            {
+                "uuid": "123e4567-e89b-12d3-a456-426614174000",
+                "origin": "openbb",
+                "widget_id": "openbb_story",
+                "name": "OpenBB Story",
+                "description": "A PDF file about a story about OpenBB",
+                "params": [],
+                "metadata": {
+                    "extension": "pdf",
+                    "originalFilename": "openbb_story.pdf"
+                }
+            }
+        ]
+    }
+}
