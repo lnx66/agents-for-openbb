@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -52,20 +51,15 @@ def get_copilot_description():
 async def query(request: QueryRequest) -> EventSourceResponse:
     """Query the Copilot."""
 
-    # This is the main execution loop for the Copilot.
-    async def execution_loop():
-        async for event in agent.run_openrouter_agent(
-            messages=await agent.process_messages(
-                system_prompt=SYSTEM_PROMPT,
-                messages=request.messages,
-            ),
-            model="deepseek/deepseek-r1",
-            api_key=os.environ["OPENROUTER_API_KEY"],
-        ):
-            yield event
+    openbb_agent = agent.OpenBBAgent(
+        query_request=request,
+        system_prompt=SYSTEM_PROMPT,
+        chat_class=agent.OpenRouterChat,
+        model="deepseek/deepseek-r1",
+    )
 
     # Stream the SSEs back to the client.
     return EventSourceResponse(
-        content=execution_loop(),
+        content=openbb_agent.run(),
         media_type="text/event-stream",
     )

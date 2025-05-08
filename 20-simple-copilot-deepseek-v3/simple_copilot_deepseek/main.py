@@ -1,16 +1,10 @@
 import json
 import logging
-import os
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from magentic import (
-    AsyncStreamedStr,
-    Chat,
-)
-from magentic.chat_model.openai_chat_model import OpenaiChatModel
 from sse_starlette.sse import EventSourceResponse
 
 from .prompts import SYSTEM_PROMPT
@@ -56,32 +50,15 @@ def get_copilot_description():
 async def query(request: QueryRequest) -> EventSourceResponse:
     """Query the Copilot."""
 
-    chat = Chat(
-        messages=await agent.process_messages(
-            system_prompt=SYSTEM_PROMPT,
-            messages=request.messages,
-        ),
-        output_types=[AsyncStreamedStr],
-        # We'll use OpenRouter as our bridge to DeepSeek,
-        # which has an OpenAI-compatible API.
-        model=OpenaiChatModel(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=os.environ["OPENROUTER_API_KEY"],
-            model="deepseek/deepseek-chat-v3-0324",
-        ),
+    openbb_agent = agent.OpenBBAgent(
+        query_request=request,
+        system_prompt=SYSTEM_PROMPT,
+        chat_class=agent.OpenRouterChat,
+        model="deepseek/deepseek-chat-v3-0324",
     )
-
-    # This is the main execution loop for the Copilot.
-    async def execution_loop(chat: Chat):
-        async for event in agent.run_openrouter_agent(
-            messages=request.messages,
-            model="deepseek/deepseek-chat-v3-0324",
-            api_key=os.environ["OPENROUTER_API_KEY"],
-        ):
-            yield event
 
     # Stream the SSEs back to the client.
     return EventSourceResponse(
-        content=execution_loop(chat),
+        content=openbb_agent.run(),
         media_type="text/event-stream",
     )
