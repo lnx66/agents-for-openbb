@@ -1,6 +1,7 @@
 import json
 import logging
 from pathlib import Path
+from typing import AsyncGenerator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -46,6 +47,11 @@ def get_copilot_description():
     )
 
 
+async def get_weather(city: str) -> AsyncGenerator[str, None]:
+    """Get the weather for a city."""
+    yield f"The weather in {city} is sunny."
+
+
 @app.post("/v1/query")
 async def query(request: QueryRequest) -> EventSourceResponse:
     """Query the Copilot."""
@@ -54,7 +60,8 @@ async def query(request: QueryRequest) -> EventSourceResponse:
         query_request=request,
         system_prompt=SYSTEM_PROMPT,
         chat_class=agent.OpenRouterChat,
-        model="deepseek/deepseek-chat-v3-0324",
+        model="openai/gpt-4o",  # "deepseek/deepseek-chat-v3-0324",
+        functions=[get_weather],
     )
 
     # Stream the SSEs back to the client.

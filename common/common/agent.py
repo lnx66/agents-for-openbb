@@ -1,4 +1,5 @@
 import inspect
+import json
 import os
 from asyncstdlib import tee
 from magentic import (
@@ -42,18 +43,24 @@ from typing import (
     AsyncGenerator,
     Awaitable,
     Callable,
+    Iterable,
     Literal,
     Protocol,
     cast,
 )
 import re
-from openai import AsyncOpenAI
+from openai import NOT_GIVEN, AsyncOpenAI
 from openai.types.chat import (
     ChatCompletionMessageParam,
     ChatCompletionSystemMessageParam,
     ChatCompletionUserMessageParam,
     ChatCompletionAssistantMessageParam,
+    ChatCompletionToolParam,
+    ChatCompletionMessageToolCallParam,
+    ChatCompletionToolMessageParam,
 )
+from openai.types.shared_params import FunctionDefinition as OpenAiFunctionDefinition
+from magentic.chat_model.function_schema import FunctionCallFunctionSchema
 
 
 def sanitize_message(message: str) -> str:
@@ -478,7 +485,7 @@ class OpenRouterChat:
         system_message = next(m for m in self._messages if isinstance(m, SystemMessage))
         return system_message.content if system_message else ""
 
-    def _convert_messages(self) -> list[ChatCompletionMessageParam]:
+    async def _convert_messages(self) -> list[ChatCompletionMessageParam]:
         converted_messages: list[ChatCompletionMessageParam] = []
         for message in self._messages:
             if isinstance(message, SystemMessage):
@@ -492,12 +499,71 @@ class OpenRouterChat:
                     ChatCompletionUserMessageParam(role="user", content=message.content)
                 )
             elif isinstance(message, AssistantMessage):
+                if isinstance(message.content, AsyncStreamedResponse):
+                    async for item in message.content:
+                        if isinstance(item, FunctionCall):
+                            converted_messages.append(
+                                ChatCompletionAssistantMessageParam(
+                                    role="assistant",
+                                    tool_calls=[
+                                        ChatCompletionMessageToolCallParam(
+                                            id=item._unique_id,
+                                            type="function",
+                                            function={
+                                                "name": item.function.__name__,
+                                                "arguments": str(item.arguments),
+                                            },
+                                        )
+                                    ],
+                                )
+                            )
+                        if isinstance(item, AsyncStreamedStr):
+                            content = ""
+                            async for chunk in item:
+                                content += chunk
+                            converted_messages.append(
+                                ChatCompletionAssistantMessageParam(
+                                    role="assistant", content=content
+                                )
+                            )
+            elif isinstance(message, FunctionResultMessage):
                 converted_messages.append(
-                    ChatCompletionAssistantMessageParam(
-                        role="assistant", content=message.content
+                    ChatCompletionToolMessageParam(
+                        role="tool",
+                        tool_call_id=message.function_call._unique_id,
+                        content=message.content,
                     )
                 )
         return converted_messages
+
+    def _prepare_tools(
+        self, functions: list[Callable] | None
+    ) -> Iterable[ChatCompletionToolParam] | None:
+        if not functions:
+            return None
+        function_declarations: list[ChatCompletionToolParam] = []
+        for function in functions:
+            schema = FunctionCallFunctionSchema(function)
+            tool_definition = ChatCompletionToolParam(
+                function=OpenAiFunctionDefinition(
+                    name=schema.name,
+                    description=schema.description or "",
+                    parameters=schema.parameters,
+                    strict=True,
+                ),
+                type="function",
+            )
+            # This MUST be included to avoid errors.
+            tool_definition["function"]["parameters"]["additionalProperties"] = False
+
+            function_declarations.append(tool_definition)
+        return function_declarations
+
+    def _get_function(self, function_name: str) -> Callable:
+        for function in self._functions if self._functions else []:
+            if function.__name__ == function_name:
+                return function
+        raise ValueError(f"Function not found: {function_name}")
 
     async def asubmit(self) -> "OpenRouterChat":
         client = AsyncOpenAI(
@@ -507,7 +573,8 @@ class OpenRouterChat:
 
         stream = await client.chat.completions.create(
             model=self._model,
-            messages=self._convert_messages(),
+            messages=await self._convert_messages(),
+            tools=self._prepare_tools(self._functions) or NOT_GIVEN,
             stream=True,
         )
 
@@ -516,7 +583,10 @@ class OpenRouterChat:
         ):
             previous, current = tee(stream, n=2)
             reasoning = ""
+            function_arguments = ""
+            function_name = None
             async for chunk in previous:
+                print(chunk)
                 if (
                     self._show_reasoning
                     and hasattr(chunk.choices[0].delta, "reasoning")
@@ -545,6 +615,20 @@ class OpenRouterChat:
                                     yield delta.content
 
                     yield AsyncStreamedStr(async_streamed_str())
+                elif chunk.choices[0].delta.tool_calls:
+                    if function := chunk.choices[0].delta.tool_calls[0].function:
+                        if not function_name:
+                            function_name = function.name
+                        if function.arguments:
+                            function_arguments += function.arguments
+
+                if chunk.choices[0].finish_reason == "tool_calls":
+                    yield FunctionCall(
+                        function=self._get_function(function_name or ""),
+                        **(json.loads(function_arguments) or {}),
+                    )
+                    function_name = None
+                    function_arguments = ""
 
         self.add_message(
             AssistantMessage(content=AsyncStreamedResponse(async_streamed_response()))
