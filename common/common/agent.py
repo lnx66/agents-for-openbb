@@ -586,7 +586,6 @@ class OpenRouterChat:
             function_arguments = ""
             function_name = None
             async for chunk in previous:
-                print(chunk)
                 if (
                     self._show_reasoning
                     and hasattr(chunk.choices[0].delta, "reasoning")
@@ -631,8 +630,8 @@ class OpenRouterChat:
                     function_arguments = ""
 
         self.add_message(
-            AssistantMessage(content=AsyncStreamedResponse(async_streamed_response()))
-        )  # type: ignore
+            AssistantMessage(content=AsyncStreamedResponse(async_streamed_response()))  # type: ignore
+        )
         return self
 
     @property
@@ -656,7 +655,7 @@ class OpenBBAgent:
         self.functions = functions
         self.chat_class = chat_class or Chat
         self._model: str | OpenaiChatModel | None = model
-        self._chat: Chat | GeminiChat | None = None
+        self._chat: Chat | GeminiChat | OpenRouterChat | None = None
         self._citations: CitationCollection | None = None
         self._messages: list[AnyMessage] = []
         self._kwargs = kwargs
