@@ -16,6 +16,9 @@ Use the following guidelines:
 
 You can use the following functions to help you answer the user's query:
 - get_widget_data(widget_uuid: str) -> str: Get the data for a widget. You can use this function multiple times to get the data for multiple widgets.
+- get_random_stout_beers(n: int = 1) -> str: Get a random stout beer from the Beer API.
+  - When doing so, it is recommended to display the image in the UI to display the beer to the user.
+  - Also always offer a description of the beer to the user, based on the information in the beer.
 
 Only call functions if required to answer the user's query.
 

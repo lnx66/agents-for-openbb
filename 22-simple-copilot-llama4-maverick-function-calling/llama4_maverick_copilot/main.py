@@ -12,7 +12,7 @@ from common import agent
 from common.models import (
     QueryRequest,
 )
-from .functions import get_widget_data
+from .functions import get_random_stout_beers, get_widget_data
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -66,7 +66,7 @@ async def query(request: QueryRequest) -> EventSourceResponse:
         system_prompt=render_system_prompt(request.widgets),
         chat_class=agent.OpenRouterChat,
         model="meta-llama/llama-4-maverick",
-        functions=[get_widget_data],
+        functions=[get_widget_data, get_random_stout_beers],
     )
 
     # Stream the SSEs back to the client.
