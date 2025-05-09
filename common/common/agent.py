@@ -62,6 +62,10 @@ from openai.types.chat import (
 from openai.types.shared_params import FunctionDefinition as OpenAiFunctionDefinition
 from magentic.chat_model.function_schema import FunctionCallFunctionSchema
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 def sanitize_message(message: str) -> str:
     """Sanitize a message by escaping forbidden characters."""
@@ -762,6 +766,9 @@ class OpenBBAgent:
         function_call.function.request = self.request
 
         # Execute the function.
+        logger.info(
+            f"Executing function: {function_call.function.__name__} with arguments: {function_call.arguments}"
+        )
         async for event in function_call():
             # Yield reasoning steps.
             if isinstance(event, StatusUpdateSSE):
