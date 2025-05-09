@@ -710,7 +710,7 @@ class OpenBBAgent:
                 case LlmClientMessage(role="ai") if isinstance(
                     message.content, LlmFunctionCall
                 ):
-                    # Everything is handle in the function call result message.
+                    # Everything is handled in the function call result message.
                     pass
                 case LlmClientFunctionCallResultMessage(role="tool"):
                     if not self.functions:
