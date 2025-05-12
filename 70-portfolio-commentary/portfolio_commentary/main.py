@@ -62,7 +62,7 @@ async def root():
     return {
         "name": "Portfolio Commentary API",
         "version": "1.0.0",
-        "endpoints": ["/v1/query", "/copilots.json"],
+        "endpoints": ["/v1/query", "/agents.json"],
         "status": "operational",
     }
 
@@ -232,11 +232,11 @@ async def custom_run_agent(
             return
 
 
-@app.get("/copilots.json")
+@app.get("/agents.json")
 def get_copilot_description():
     """Widgets configuration file for the OpenBB Terminal Pro"""
     return JSONResponse(
-        content=json.load(open((Path(__file__).parent.resolve() / "copilots.json")))
+        content=json.load(open((Path(__file__).parent.resolve() / "agents.json")))
     )
 
 
