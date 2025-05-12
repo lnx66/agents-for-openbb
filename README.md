@@ -51,7 +51,7 @@ you'll need to create a backend API that the OpenBB Workspace can make requests 
 
 A custom agent consists of an API with two endpoints:
 
-- `/copilots.json` -- Describes your custom agent to the OpenBB Workspace
+- `/agents.json` -- Describes your custom agent to the OpenBB Workspace
 - `/query` -- Receives requests from the OpenBB Workspace and responds with SSEs
 
 Your custom agent API must respond with Server-Sent Events
@@ -102,7 +102,7 @@ app.add_middleware(
 )
 
 
-@app.get("/copilots.json")
+@app.get("/agents.json")
 def get_copilot_description():
     return JSONResponse(
         content={
@@ -349,7 +349,7 @@ async def get_widget_data(
     )
     return
 
-@app.get("/copilots.json")
+@app.get("/agents.json")
 def get_copilot_description():
     return JSONResponse(
         content={
@@ -391,7 +391,7 @@ To do this, we must:
 
 - Define a function with the `@remote_function_call` decorator
 - Update system prompt to include available widgets
-- Enable remote function calling in `copilots.json` endpoint
+- Enable remote function calling in `agents.json` endpoint
 
 In the example above, we use the widget's current parameter values, but in more advanced cases, we could modify these based on the user query.
 
