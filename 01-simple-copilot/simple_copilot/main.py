@@ -28,7 +28,7 @@ app.add_middleware(
 )
 
 
-@app.get("/copilots.json")
+@app.get("/agents.json")
 def get_copilot_description():
     return JSONResponse(
         content={

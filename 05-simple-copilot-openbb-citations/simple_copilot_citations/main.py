@@ -35,7 +35,7 @@ app.add_middleware(
 )
 
 
-@app.get("/copilots.json")
+@app.get("/agents.json")
 def get_copilot_description():
     """Widgets configuration file for the OpenBB Terminal Pro"""
     return JSONResponse(
