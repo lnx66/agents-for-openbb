@@ -11,7 +11,7 @@ from magentic import (
     ParallelFunctionCall,
 )
 from google import genai
-from common.models import (
+from openbb_ai.models import (
     ClientFunctionCallError,
     QueryRequest,
     Citation,

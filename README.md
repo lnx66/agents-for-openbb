@@ -71,6 +71,12 @@ First, let's set our OPENAI_API_KEY:
 export OPENAI_API_KEY=<your-openai-api-key>
 ```
 
+And install the dependencies:
+
+```bash
+poetry install
+```
+
 Now, let's create a basic FastAPI app that uses the `OpenBBAgent` class to chat
 with the user:
 
@@ -82,7 +88,7 @@ from sse_starlette.sse import EventSourceResponse
 
 from dotenv import load_dotenv
 from common import agent
-from common.models import (
+from openbb_ai.models import (
     QueryRequest,
 )
 
@@ -268,7 +274,7 @@ When you query the agent, it will be able to call the `get_random_stout_beers` f
 ```python
 from typing import AsyncGenerator
 from common import agent
-from common.models import (
+from openbb_ai.models import (
     QueryRequest,
     DataContent,
     FunctionCallSSE,
@@ -412,7 +418,7 @@ By default, widget data is returned to the LLM as a raw string. You can provide 
 Example of a `DataContent` object with a single item:
 
 ```python
-from common.models import DataContent, SingleDataContent, RawObjectDataFormat
+from openbb_ai.models import DataContent, SingleDataContent, RawObjectDataFormat
 
 data_content_example = DataContent(
     items=[

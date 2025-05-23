@@ -9,7 +9,7 @@ from .prompts import render_system_prompt
 
 from dotenv import load_dotenv
 from common import agent
-from common.models import (
+from openbb_ai.models import (
     QueryRequest,
 )
 from .functions import get_random_stout_beers, get_widget_data

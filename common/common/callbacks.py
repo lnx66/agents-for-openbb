@@ -1,5 +1,5 @@
 from typing import AsyncGenerator
-from common.models import (
+from openbb_ai.models import (
     QueryRequest,
     Citation,
     DataSourceRequest,

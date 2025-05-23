@@ -1,6 +1,6 @@
 from typing import AsyncGenerator, Callable
 from common.agent import reasoning_step, get_remote_data, remote_function_call
-from common.models import (
+from openbb_ai.models import (
     DataContent,
     FunctionCallSSE,
     StatusUpdateSSE,

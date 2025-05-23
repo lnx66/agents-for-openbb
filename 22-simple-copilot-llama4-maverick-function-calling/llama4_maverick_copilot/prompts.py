@@ -1,4 +1,4 @@
-from common.models import Widget, WidgetCollection
+from openbb_ai.models import Widget, WidgetCollection
 
 
 SYSTEM_PROMPT_TEMPLATE = """\n
