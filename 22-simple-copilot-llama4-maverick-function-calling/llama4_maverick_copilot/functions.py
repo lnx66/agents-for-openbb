@@ -2,7 +2,7 @@ import random
 from typing import AsyncGenerator
 from common.agent import reasoning_step, get_remote_data, remote_function_call
 from common.callbacks import cite_widget
-from common.models import (
+from openbb_ai.models import (
     QueryRequest,
     DataContent,
     FunctionCallSSE,

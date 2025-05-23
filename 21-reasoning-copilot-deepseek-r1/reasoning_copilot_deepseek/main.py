@@ -9,7 +9,7 @@ from .prompts import SYSTEM_PROMPT
 
 from dotenv import load_dotenv
 from common import agent
-from common.models import (
+from openbb_ai.models import (
     QueryRequest,
 )
 
