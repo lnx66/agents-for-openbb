@@ -19,17 +19,9 @@ from openai.types.chat import (
 
 app = FastAPI()
 
-origins = [
-    "http://localhost",
-    "http://localhost:1420",
-    "http://localhost:5050",
-    "https://pro.openbb.dev",
-    "https://pro.openbb.co",
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["https://pro.openbb.co"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
