@@ -1,4 +1,3 @@
-import logging
 from typing import AsyncGenerator
 import openai
 
@@ -7,7 +6,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sse_starlette.sse import EventSourceResponse
 
-from dotenv import load_dotenv
 from openbb_ai.models import MessageChunkSSE, QueryRequest
 from openbb_ai import get_widget_data, WidgetRequest, message_chunk
 
@@ -19,13 +17,6 @@ from openai.types.chat import (
 )
 
 
-
-from .prompts import render_system_prompt
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-load_dotenv(".env")
 app = FastAPI()
 
 origins = [
@@ -100,7 +91,7 @@ async def query(request: QueryRequest) -> EventSourceResponse:
     openai_messages: list[ChatCompletionMessageParam] = [
         ChatCompletionSystemMessageParam(
             role="system",
-            content=render_system_prompt(widget_collection=request.widgets),
+            content="You are a helpful financial assistant. Your name is 'Vanilla Agent'.",
         )
     ]
 
