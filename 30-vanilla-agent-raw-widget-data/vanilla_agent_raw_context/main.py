@@ -113,7 +113,8 @@ async def query(request: QueryRequest) -> EventSourceResponse:
                     result_str += "------\n"
             context_str += result_str
 
-    openai_messages[-1]["content"] += "\n\n" + context_str  # type: ignore
+    if context_str:
+        openai_messages[-1]["content"] += "\n\n" + context_str  # type: ignore
 
     # Define the execution loop.
     async def execution_loop() -> AsyncGenerator[MessageChunkSSE, None]:
