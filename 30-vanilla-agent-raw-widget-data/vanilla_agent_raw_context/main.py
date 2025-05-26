@@ -1,7 +1,5 @@
-import json
 import logging
 from typing import AsyncGenerator
-import uuid
 import openai
 
 from fastapi import FastAPI
@@ -18,11 +16,8 @@ from openai.types.chat import (
     ChatCompletionUserMessageParam,
     ChatCompletionAssistantMessageParam,
     ChatCompletionSystemMessageParam,
-    ChatCompletionToolMessageParam,
-    ChatCompletionMessageToolCallParam,
 )
 
-from openai.types.chat.chat_completion_message_tool_call_param import Function
 
 
 from .prompts import render_system_prompt
@@ -108,6 +103,8 @@ async def query(request: QueryRequest) -> EventSourceResponse:
             content=render_system_prompt(widget_collection=request.widgets),
         )
     ]
+
+    context_str = ""
     for index, message in enumerate(request.messages):
         if message.role == "human":
             openai_messages.append(
@@ -124,39 +121,15 @@ async def query(request: QueryRequest) -> EventSourceResponse:
         # this to prevent previously-retrieved widget data from piling up and
         # exceeding the context limit of the LLM.
         elif message.role == "tool" and index == len(request.messages) - 1:
-            tool_call_id = str(uuid.uuid4())[:13]
-            function = Function(
-                name=message.function,
-                arguments=json.dumps(message.input_arguments),
-            )
-            # First handle the function call itself
-            openai_messages.append(
-                ChatCompletionAssistantMessageParam(
-                    role="assistant",
-                    tool_calls=[
-                        ChatCompletionMessageToolCallParam(
-                            type="function",
-                            id=tool_call_id,
-                            function=function,
-                        )
-                    ],
-                )
-            )
-
-            # Then handle the function call result
+            context_str += "Use the following data to answer the question:\n\n"
             result_str = "--- Data ---\n"
             for result in message.data:
                 for item in result.items:
                     result_str += f"{item.content}\n"
                     result_str += "------\n"
+            context_str += result_str
 
-            openai_messages.append(
-                ChatCompletionToolMessageParam(
-                    role="tool",
-                    content=result_str,
-                    tool_call_id=tool_call_id,
-                )
-            )
+    openai_messages[-1]["content"] += "\n\n" + context_str  # type: ignore
 
     # Define the execution loop.
     async def execution_loop() -> AsyncGenerator[MessageChunkSSE, None]:

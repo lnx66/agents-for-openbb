@@ -101,8 +101,7 @@ endpoint as defined in the copilot.json schema.
 ## Overview
 
 This implementation utilizes a FastAPI application to serve as the backend for
-the copilot. The core functionality is powered by `magentic`, a robust, minimal
-framework for working with Large Language Models (LLMs).
+the copilot. 
 
 You're not limited to our setup! If you have preferences for different APIs or
 LLM frameworks, feel free to adapt this implementation. The key is to adhere to
