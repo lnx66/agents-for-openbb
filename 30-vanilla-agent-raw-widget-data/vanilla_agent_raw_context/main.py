@@ -101,8 +101,9 @@ async def query(request: QueryRequest) -> EventSourceResponse:
                     )
                 )
         # We only add the most recent tool call / widget data to context.  We do
-        # this to prevent previously-retrieved widget data from piling up and
-        # exceeding the context limit of the LLM.
+        # this **only for this particular example** to prevent
+        # previously-retrieved widget data from piling up and exceeding the
+        # context limit of the LLM.
         elif message.role == "tool" and index == len(request.messages) - 1:
             context_str += "Use the following data to answer the question:\n\n"
             result_str = "--- Data ---\n"
