@@ -10,8 +10,8 @@ from fastapi.responses import JSONResponse
 from sse_starlette.sse import EventSourceResponse
 
 from dotenv import load_dotenv
-from openbb_ai.models import MessageChunkSSE, MessageChunkSSEData, QueryRequest
-from openbb_ai import get_widget_data, WidgetRequest
+from openbb_ai.models import MessageChunkSSE, QueryRequest
+from openbb_ai import get_widget_data, WidgetRequest, message_chunk
 
 from openai.types.chat import (
     ChatCompletionMessageParam,
@@ -166,10 +166,8 @@ async def query(request: QueryRequest) -> EventSourceResponse:
             messages=openai_messages,
             stream=True,
         ):
-            if event.choices[0].delta.content:
-                yield MessageChunkSSE(
-                    data=MessageChunkSSEData(delta=event.choices[0].delta.content),
-                ).model_dump()
+            if chunk := event.choices[0].delta.content:
+                yield message_chunk(chunk).model_dump()
 
     # Stream the SSEs back to the client.
     return EventSourceResponse(
