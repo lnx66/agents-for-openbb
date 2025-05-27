@@ -22,8 +22,8 @@ from openbb_ai.models import (
     DataSourceRequest,
     FunctionCallSSE,
     FunctionCallSSEData,
+    LlmClientFunctionCall,
     LlmClientFunctionCallResultMessage,
-    LlmFunctionCall,
     LlmClientMessage,
     MessageChunkSSE,
     MessageChunkSSEData,
@@ -712,7 +712,7 @@ class OpenBBAgent:
                 case LlmClientMessage(role="ai") if isinstance(message.content, str):
                     chat_messages.append(AssistantMessage(content=message.content))
                 case LlmClientMessage(role="ai") if isinstance(
-                    message.content, LlmFunctionCall
+                    message.content, LlmClientFunctionCall
                 ):
                     # Everything is handled in the function call result message.
                     pass
