@@ -41,7 +41,7 @@ class CopilotResponse:
             elif event_type == "copilotStatusUpdate" and line.startswith("data:"):
                 event_name = "copilotStatusUpdate"
                 data_payload = line.split("data:")[1].strip()
-                data_dict_ = literal_eval(data_payload)
+                data_dict_ = json.loads(data_payload)
                 self.events.append(
                     CopilotEvent(event_type=event_name, content=data_dict_)
                 )
