@@ -1,6 +1,6 @@
 import json
 from fastapi.testclient import TestClient
-from vanilla_agent_raw_context.main import app
+from vanilla_agent_raw_context_citations.main import app
 import pytest
 from pathlib import Path
 from common.testing import CopilotResponse, capture_stream_response
@@ -86,7 +86,7 @@ def test_query_returns_remote_function_call():
     )
 
 
-def test_query_completes_remote_function_call():
+def test_query_completes_remote_function_call_with_citation():
     test_payload_path = (
         Path(__file__).parent.parent.parent
         / "test_payloads"
@@ -103,4 +103,27 @@ def test_query_completes_remote_function_call():
         .with_("Negative")
         .with_("Neutral")
         .with_("Apple")
+        .ends("copilotCitationCollection")
+        .with_(
+            {
+                "citations": [
+                    {
+                        "source_info": {
+                            "type": "widget",
+                            "origin": "openbb",
+                            "widget_id": "company_news",
+                            "metadata": {"input_args": {"symbol": "AAPL"}},
+                            "citable": True,
+                        },
+                        "details": [
+                            {
+                                "Widget Name": "Company News",
+                                "Widget Input Arguments": {"symbol": "AAPL"},
+                            }
+                        ],
+                        "signature": "origin=openbb&widget_id=company_news&args=[symbol=aapl]",
+                    }
+                ]
+            }
+        )
     )

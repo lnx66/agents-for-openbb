@@ -88,6 +88,7 @@ async def query(request: QueryRequest) -> EventSourceResponse:
     ]
 
     context_str = ""
+    citations_list = []
     for index, message in enumerate(request.messages):
         if message.role == "human":
             openai_messages.append(
@@ -114,7 +115,6 @@ async def query(request: QueryRequest) -> EventSourceResponse:
             context_str += result_str
 
             # We also need to create citations for the widget data we retrieved.
-            citations_list = []
             for widget_data_request in message.input_arguments["data_sources"]:
                 filtered_widgets = list(
                     filter(
@@ -130,12 +130,14 @@ async def query(request: QueryRequest) -> EventSourceResponse:
                             # You can add any extra details you want to the
                             # citation using the `extra_details` argument.
                             extra_details={
-                                "Widget Name" : filtered_widgets[0].name,
-                                "Widget Input Arguments" : widget_data_request["input_args"],
-                            }
+                                "Widget Name": filtered_widgets[0].name,
+                                "Widget Input Arguments": widget_data_request[
+                                    "input_args"
+                                ],
+                            },
                         )
                     )
-    
+
     if context_str:
         openai_messages[-1]["content"] += "\n\n" + context_str  # type: ignore
 
