@@ -1467,14 +1467,14 @@ voice-helpers = ["numpy (>=2.0.2)", "sounddevice (>=0.5.1)"]
 
 [[package]]
 name = "openbb-ai"
-version = "1.2.0"
+version = "1.2.1"
 description = "An SDK for building agents compatible with OpenBB Workspace"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "openbb_ai-1.2.0-py3-none-any.whl", hash = "sha256:c3f83ef237ff73224bf5423f834904d24e4b34871a9b5fb7b61effc2fc3b1460"},
-    {file = "openbb_ai-1.2.0.tar.gz", hash = "sha256:542bfe9400688782eb06f7918475fdf44318951bab78a1ce6bb40a996dfd13b2"},
+    {file = "openbb_ai-1.2.1-py3-none-any.whl", hash = "sha256:0756ea9342a10269d5248272034d8276e6a12841af6ace0c05affd925ef2bc21"},
+    {file = "openbb_ai-1.2.1.tar.gz", hash = "sha256:b5c171b4d083b833e0248f3a256e44109fb305458e97be3ae6ce8fa0b67d20ab"},
 ]
 
 [package.dependencies]
@@ -3021,4 +3021,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.10"
-content-hash = "6aff125df9336234cc3beb69aad13c0217a5c91b5fb34ce284e9be371b2819a2"
+content-hash = "9e1ba13fa2255f4f5313905d1c59bca08937bd959f9f0464048c3bea8377a701"
