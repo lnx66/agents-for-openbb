@@ -5,9 +5,9 @@ and remote function calling to the OpenBB Workspace to retrieve widget data, and
 then cite the data that has been retrieved.
 
 ## Understanding the role of the OpenBB Workspace for custom agents
-OpenBB Workspace is the front-end browser-based application for accessing
-and interacting with your data on OpenBB. This is the application that you interact
-with when using OpenBB.
+OpenBB Workspace is a browser-based application that serves as the primary
+interface for accessing and interacting with OpenBB data. It's the main
+application you use when working with OpenBB.
 
 However, OpenBB Workspace also serves as the data layer for all agents that are
 added to your OpenBB Workspace. If configured correctly, custom agents can use
@@ -95,7 +95,7 @@ The architecture consists of two main components:
 2. **Agent (Backend)**: Powered by OpenAI, handles the processing of queries, executing internal function calls, and returns answers
 
 The frontend communicates with the backend via HTTP requests to the `/query`
-endpoint as defined in the copilot.json schema.
+endpoint as defined in the agents.json schema.
 
 ## Overview
 
@@ -137,7 +137,7 @@ poetry install --no-root
 
 ``` sh
 cd 32-vanilla-agent-raw-widget-data-citations
-poetry run uvicorn vanilla_agent_raw_widget_data_citations.main:app --port 7777 --reload
+poetry run uvicorn vanilla_agent_raw_context_citations.main:app --port 7777 --reload
 ```
 
 This command runs the FastAPI application, making it accessible on your network.
