@@ -23,7 +23,10 @@ class CopilotResponse:
             if line.startswith("event:"):
                 event_type = line.split("event:")[1].strip()
             if event_type == "copilotMessageChunk" and line.startswith("data:"):
-                if copilot_message_event_index is None or copilot_message_event_index < len(self.events):
+                if (
+                    copilot_message_event_index is None
+                    or copilot_message_event_index < len(self.events)
+                ):
                     copilot_message_event_index = len(self.events)
                     self.events.append(
                         CopilotEvent(event_type="copilotMessage", content="")
@@ -93,9 +96,7 @@ class CopilotResponse:
         else:
             raise StopIteration
 
-    def _contains(
-        self, event, content_contains: str | dict, ignore_case: bool = True
-    ):
+    def _contains(self, event, content_contains: str | dict, ignore_case: bool = True):
         try:
             self._assert_contains(event, content_contains, ignore_case)
             return True
@@ -141,9 +142,12 @@ class CopilotResponse:
         assert self.events[self.index].event_type == event_type
         return self
 
-    def has_any(self, event_type: str, content_contains: str | dict, ignore_case: bool = True):
+    def has_any(
+        self, event_type: str, content_contains: str | dict, ignore_case: bool = True
+    ):
         assert any(
-            event_type == event.event_type and self._contains(event, content_contains, ignore_case)
+            event_type == event.event_type
+            and self._contains(event, content_contains, ignore_case)
             for event in self.events
         ), (
             f"Event type {event_type} with content {content_contains} not found in events.\n"
