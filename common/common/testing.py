@@ -25,12 +25,12 @@ class CopilotResponse:
             if event_type == "copilotMessageChunk" and line.startswith("data:"):
                 if (
                     copilot_message_event_index is None
-                    or copilot_message_event_index < len(self.events)
+                    or copilot_message_event_index < len(self.events) - 1
                 ):
-                    copilot_message_event_index = len(self.events)
                     self.events.append(
                         CopilotEvent(event_type="copilotMessage", content="")
                     )
+                    copilot_message_event_index = len(self.events)-1
                 data_payload = line.split("data:")[1].strip()
                 data_dict_ = literal_eval(data_payload)
                 self.events[copilot_message_event_index].content += data_dict_["delta"]
