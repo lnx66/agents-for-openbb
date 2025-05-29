@@ -1,4 +1,4 @@
-name: Test Copilots
+name: Test Example Agents
 
 on: 
   workflow_dispatch:
