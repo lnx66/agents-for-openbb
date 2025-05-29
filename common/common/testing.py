@@ -23,14 +23,24 @@ class CopilotResponse:
             if line.startswith("event:"):
                 event_type = line.split("event:")[1].strip()
             if event_type == "copilotMessageChunk" and line.startswith("data:"):
-                if copilot_message_event_index is None:
-                    copilot_message_event_index = len(self.events)
+                if (
+                    copilot_message_event_index is None
+                    or copilot_message_event_index < len(self.events) - 1
+                ):
                     self.events.append(
                         CopilotEvent(event_type="copilotMessage", content="")
                     )
+                    copilot_message_event_index = len(self.events) - 1
                 data_payload = line.split("data:")[1].strip()
                 data_dict_ = literal_eval(data_payload)
                 self.events[copilot_message_event_index].content += data_dict_["delta"]
+            elif event_type == "copilotMessageArtifact" and line.startswith("data:"):
+                event_name = "copilotMessageArtifact"
+                data_payload = line.split("data:")[1].strip()
+                data_dict_ = json.loads(data_payload)
+                self.events.append(
+                    CopilotEvent(event_type=event_name, content=data_dict_)
+                )
             elif event_type == "copilotFunctionCall" and line.startswith("data:"):
                 event_name = "copilotFunctionCall"
                 data_payload = line.split("data:")[1].strip()
@@ -86,7 +96,14 @@ class CopilotResponse:
         else:
             raise StopIteration
 
-    def _check_equals(
+    def _contains(self, event, content_contains: str | dict, ignore_case: bool = True):
+        try:
+            self._assert_contains(event, content_contains, ignore_case)
+            return True
+        except AssertionError:
+            return False
+
+    def _assert_contains(
         self, event, content_contains: str | dict, ignore_case: bool = True
     ):
         if isinstance(content_contains, str):
@@ -107,7 +124,7 @@ class CopilotResponse:
         return self
 
     def with_(self, content_contains: str | dict, ignore_case: bool = True):
-        self._check_equals(self.events[self.index], content_contains, ignore_case)
+        self._assert_contains(self.events[self.index], content_contains, ignore_case)
         return self
 
     def then(self, event_type: str):
@@ -117,20 +134,7 @@ class CopilotResponse:
 
     def and_(self, content_contains: str):
         # assert content_contains in str(self.events[self.index].content)
-        self._check_equals(self.events[self.index], content_contains)
-        return self
-
-    def with_not(self, content_contains: str):
-        assert content_contains not in str(self.events[self.index].content)
-        return self
-
-    def then_not(self, event_type: str):
-        self.index += 1
-        assert self.events[self.index].event_type != event_type
-        return self
-
-    def then_ignore(self):
-        self.index += 1
+        self._assert_contains(self.events[self.index], content_contains)
         return self
 
     def ends(self, event_type: str):
@@ -138,14 +142,12 @@ class CopilotResponse:
         assert self.events[self.index].event_type == event_type
         return self
 
-    def ends_not(self, event_type: str):
-        self.index = len(self.events) - 1
-        assert self.events[self.index].event_type != event_type
-        return self
-
-    def has_any(self, event_type: str, content_contains: str):
+    def has_any(
+        self, event_type: str, content_contains: str | dict, ignore_case: bool = True
+    ):
         assert any(
-            event_type == event.event_type and content_contains in str(event.content)
+            event_type == event.event_type
+            and self._contains(event, content_contains, ignore_case)
             for event in self.events
         ), (
             f"Event type {event_type} with content {content_contains} not found in events.\n"
