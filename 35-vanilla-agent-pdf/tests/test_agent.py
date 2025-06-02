@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 from vanilla_agent_pdf.main import app
 import pytest
 from pathlib import Path
-from common.testing import CopilotResponse, capture_stream_response
+from openbb_ai.testing import CopilotResponse
 
 test_client = TestClient(app)
 
@@ -23,28 +23,32 @@ def reset_sse_starlette_appstatus_event():
 
 def test_query():
     test_payload_path = (
-        Path(__file__).parent.parent.parent / "test_payloads" / "single_message.json"
+        Path(__file__).parent.parent.parent
+        / "testing"
+        / "test_payloads"
+        / "single_message.json"
     )
     test_payload = json.load(open(test_payload_path))
 
     response = test_client.post("/v1/query", json=test_payload)
-    event_name, captured_stream = capture_stream_response(response.text)
     assert response.status_code == 200
-    assert event_name == "copilotMessageChunk"
-    assert "2" in captured_stream
+    copilot_response = CopilotResponse(response.text)
+    (copilot_response.has_any("copilotMessage", "2"))
 
 
 def test_query_conversation():
     test_payload_path = (
-        Path(__file__).parent.parent.parent / "test_payloads" / "multiple_messages.json"
+        Path(__file__).parent.parent.parent
+        / "testing"
+        / "test_payloads"
+        / "multiple_messages.json"
     )
     test_payload = json.load(open(test_payload_path))
 
     response = test_client.post("/v1/query", json=test_payload)
-    event_name, captured_stream = capture_stream_response(response.text)
     assert response.status_code == 200
-    assert event_name == "copilotMessageChunk"
-    assert "4" in captured_stream
+    copilot_response = CopilotResponse(response.text)
+    (copilot_response.has_any("copilotMessage", "4"))
 
 
 def test_query_no_messages():
@@ -58,13 +62,17 @@ def test_query_no_messages():
 def test_query_completes_remote_function_call_with_pdf_url():
     test_payload_path = (
         Path(__file__).parent.parent.parent
+        / "testing"
         / "test_payloads"
         / "message_with_primary_widget_and_tool_call_pdf_url.json"
     )
     test_payload = json.load(open(test_payload_path))
 
     with open(
-        Path(__file__).parent.parent.parent / "test_payloads" / "openbb_story.pdf",
+        Path(__file__).parent.parent.parent
+        / "testing"
+        / "test_payloads"
+        / "openbb_story.pdf",
         "rb",
     ) as pdf:
         pdf_content = pdf.read()
