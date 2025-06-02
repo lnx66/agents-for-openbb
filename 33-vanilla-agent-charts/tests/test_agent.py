@@ -22,7 +22,10 @@ def reset_sse_starlette_appstatus_event():
 
 def test_query():
     test_payload_path = (
-        Path(__file__).parent.parent.parent / "testing" / "test_payloads" / "single_message.json"
+        Path(__file__).parent.parent.parent
+        / "testing"
+        / "test_payloads"
+        / "single_message.json"
     )
     test_payload = json.load(open(test_payload_path))
 
@@ -34,7 +37,10 @@ def test_query():
 
 def test_query_conversation():
     test_payload_path = (
-        Path(__file__).parent.parent.parent / "testing" / "test_payloads" / "multiple_messages.json"
+        Path(__file__).parent.parent.parent
+        / "testing"
+        / "test_payloads"
+        / "multiple_messages.json"
     )
     test_payload = json.load(open(test_payload_path))
 
@@ -54,7 +60,10 @@ def test_query_no_messages():
 
 def test_query_contains_chart():
     test_payload_path = (
-        Path(__file__).parent.parent.parent / "testing" / "test_payloads" / "single_message.json"
+        Path(__file__).parent.parent.parent
+        / "testing"
+        / "test_payloads"
+        / "single_message.json"
     )
     test_payload = json.load(open(test_payload_path))
 
