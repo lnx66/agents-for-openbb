@@ -457,23 +457,6 @@ files = [
 markers = {main = "platform_system == \"Windows\"", development = "sys_platform == \"win32\""}
 
 [[package]]
-name = "common"
-version = "0.1.0"
-description = "Common models and utilities for custom copilot examples"
-optional = false
-python-versions = "^3.10"
-groups = ["main"]
-files = []
-develop = true
-
-[package.dependencies]
-pydantic = "^2.9.2"
-
-[package.source]
-type = "directory"
-url = "common"
-
-[[package]]
 name = "cryptography"
 version = "45.0.3"
 description = "cryptography is a package which provides cryptographic recipes and primitives to Python developers."
@@ -1496,14 +1479,14 @@ voice-helpers = ["numpy (>=2.0.2)", "sounddevice (>=0.5.1)"]
 
 [[package]]
 name = "openbb-ai"
-version = "1.4.0"
+version = "1.5.0"
 description = "An SDK for building agents compatible with OpenBB Workspace"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "openbb_ai-1.4.0-py3-none-any.whl", hash = "sha256:14a1a5669ec569b58e38dc3c066fdc1dac12b0e4fb02d7efad5309edd9b21f4e"},
-    {file = "openbb_ai-1.4.0.tar.gz", hash = "sha256:79466ab3bb105749071a4f4e10cd66b9236246922d0723cfe5b594d8631c7c30"},
+    {file = "openbb_ai-1.5.0-py3-none-any.whl", hash = "sha256:4cb787724da55a097e48400c26a09549c4821c3997657ef6fb54bac14aec786a"},
+    {file = "openbb_ai-1.5.0.tar.gz", hash = "sha256:38e37774a9513afd771f379445125dfb82b90dba7eb06024da3a1218cf0069b2"},
 ]
 
 [package.dependencies]
@@ -3054,4 +3037,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.10"
-content-hash = "afea2b7ed827adf3a3a7bc9c0e45cb15a8ed1d6166db38d2f70afb014927efbb"
+content-hash = "bf765f2019bcbea3b209beb6a85f5021bd12ec82bca5b5b5679ac4367b70fb9d"
