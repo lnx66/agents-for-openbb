@@ -5,9 +5,9 @@ Welcome to the example repository for integrating custom agents into the OpenBB 
 This repository provides everything you need to build and add your own custom
 agents that are compatible with the OpenBB Workspace.
 
-It depends heavily on the [OpenBB AI SDK](https://github.com/OpenBB-finance/openbb-ai-sdk).
+It depends heavily on the [OpenBB AI SDK](https://github.com/OpenBB-finance/openbb-ai).
 
-**For documentation on how to use the OpenBB AI SDK, see the [OpenBB AI SDK README](https://github.com/OpenBB-finance/openbb-ai-sdk/blob/main/README.md).**
+**For documentation on how to use the OpenBB AI SDK, see the [OpenBB AI SDK README](https://github.com/OpenBB-finance/openbb-ai).**
 
 ## Examples
 If you prefer diving straight into code, we have a growing list of examples of
