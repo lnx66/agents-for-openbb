@@ -9,7 +9,11 @@ from fastapi.responses import JSONResponse
 from sse_starlette.sse import EventSourceResponse
 
 from openbb_ai.models import (
+    Citation,
+    CitationHighlightBoundingBox,
+    CitationCollectionSSE,
     MessageChunkSSE,
+    FunctionCallSSE,
     QueryRequest,
     SingleFileReference,
     SingleDataContent,
@@ -18,7 +22,7 @@ from openbb_ai.models import (
     DataFileReferences,
     WidgetRequest,
 )
-from openbb_ai import message_chunk, get_widget_data
+from openbb_ai import message_chunk, get_widget_data, citations, cite
 
 from openai.types.chat import (
     ChatCompletionMessageParam,
@@ -38,7 +42,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://pro.openbb.co"],
+    allow_origins=["http://localhost:1420"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -87,12 +91,12 @@ async def query(request: QueryRequest) -> EventSourceResponse:
                 )
             )
 
-        async def retrieve_widget_data():
-            yield get_widget_data(widget_requests).model_dump()
+        async def retrieve_widget_data() -> AsyncGenerator[FunctionCallSSE, None]:
+            yield get_widget_data(widget_requests)
 
         # Early exit to retrieve widget data
         return EventSourceResponse(
-            content=retrieve_widget_data(),
+            content=(event.model_dump() async for event in retrieve_widget_data()),
             media_type="text/event-stream",
         )
 
@@ -105,6 +109,7 @@ async def query(request: QueryRequest) -> EventSourceResponse:
     ]
 
     context_str = ""
+    citations_list: list[Citation] = []
     for index, message in enumerate(request.messages):
         if message.role == "human":
             openai_messages.append(
@@ -124,11 +129,68 @@ async def query(request: QueryRequest) -> EventSourceResponse:
         elif message.role == "tool" and index == len(request.messages) - 1:
             context_str += await handle_widget_data(message.data)
 
+            # We also need to create citations for the widget data we retrieved.
+            for widget_data_request in message.input_arguments["data_sources"]:
+                filtered_widgets = list(
+                    filter(
+                        lambda w: str(w.uuid) == widget_data_request["widget_uuid"],
+                        request.widgets.primary,
+                    )
+                )
+                if filtered_widgets:
+                    quote_bounding_boxes = [
+                        [
+                            CitationHighlightBoundingBox(
+                                text="Some text chunk.",
+                                page=1,
+                                x0=72.0,
+                                top=117,
+                                x1=259,
+                                bottom=135,
+                            ),
+                            CitationHighlightBoundingBox(
+                                text="Some text chunk.",
+                                page=1,
+                                x0=110.0,
+                                top=140,
+                                x1=259,
+                                bottom=160,
+                            ),
+                        ],
+                        [
+                            CitationHighlightBoundingBox(
+                                text="Some text chunk.",
+                                page=1,
+                                x0=110,
+                                top=170,
+                                x1=275,
+                                bottom=185,
+                            ),
+                        ],
+                    ]
+                    citation = cite(
+                        widget=filtered_widgets[0],
+                        input_arguments=widget_data_request["input_args"],
+                        # You can add any extra details you want to the
+                        # citation using the `extra_details` argument.
+                        extra_details={
+                            "Widget Name": filtered_widgets[0].name,
+                            "Widget Input Arguments": widget_data_request["input_args"],
+                        },
+                    )
+                    # Add the bounding boxes to the citation.
+                    # This is just an example, you can modify the bounding boxes
+                    # as needed.
+                    citation.quote_bounding_boxes = quote_bounding_boxes
+                    citations_list.append(citation)
+
     if context_str:
         openai_messages[-1]["content"] += "\n\n" + context_str  # type: ignore
 
     # Define the execution loop.
-    async def execution_loop() -> AsyncGenerator[MessageChunkSSE, None]:
+    async def execution_loop() -> (
+        AsyncGenerator[MessageChunkSSE | CitationCollectionSSE, None]
+    ):
         client = openai.AsyncOpenAI()
         async for event in await client.chat.completions.create(
             model="gpt-4o",
@@ -136,11 +198,14 @@ async def query(request: QueryRequest) -> EventSourceResponse:
             stream=True,
         ):
             if chunk := event.choices[0].delta.content:
-                yield message_chunk(chunk).model_dump()
+                yield message_chunk(chunk)
+
+        if citations_list:
+            yield citations(citations_list)
 
     # Stream the SSEs back to the client.
     return EventSourceResponse(
-        content=execution_loop(),
+        content=(event.model_dump() async for event in execution_loop()),
         media_type="text/event-stream",
     )
 
